@@ -1,23 +1,132 @@
 {
   "name": "codelab-vscode-plugin",
-  "displayName": "codelab-vscode-plugin",
-  "description": "CodeLab is a powerfull ai assistant",
+  "displayName": "CodeLab",
+  "description": "AI-powered coding assistant for VS Code",
   "version": "0.0.1",
+  "publisher": "codelab",
   "engines": {
     "vscode": "^1.109.0"
   },
   "categories": [
+    "Programming Languages",
+    "Machine Learning",
     "Other"
   ],
-  "activationEvents": [],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
   "main": "./dist/extension.js",
   "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "codelab",
+          "title": "CodeLab",
+          "icon": "resources/icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "codelab": [
+        {
+          "type": "webview",
+          "id": "codelab.chatView",
+          "name": "Chat"
+        }
+      ]
+    },
     "commands": [
       {
-        "command": "codelab-vscode-plugin.helloWorld",
-        "title": "Hello World"
+        "command": "codelab.openChat",
+        "title": "CodeLab: Open Chat",
+        "category": "CodeLab"
+      },
+      {
+        "command": "codelab.explainSelection",
+        "title": "CodeLab: Explain Selection",
+        "category": "CodeLab"
+      },
+      {
+        "command": "codelab.refactorSelection",
+        "title": "CodeLab: Refactor Selection",
+        "category": "CodeLab"
+      },
+      {
+        "command": "codelab.fixErrors",
+        "title": "CodeLab: Fix Errors",
+        "category": "CodeLab"
+      },
+      {
+        "command": "codelab.generateCode",
+        "title": "CodeLab: Generate Code",
+        "category": "CodeLab"
+      },
+      {
+        "command": "codelab.setApiToken",
+        "title": "CodeLab: Set API Token",
+        "category": "CodeLab"
       }
-    ]
+    ],
+    "menus": {
+      "editor/context": [
+        {
+          "command": "codelab.explainSelection",
+          "when": "editorHasSelection",
+          "group": "codelab@1"
+        },
+        {
+          "command": "codelab.refactorSelection",
+          "when": "editorHasSelection",
+          "group": "codelab@2"
+        },
+        {
+          "command": "codelab.fixErrors",
+          "group": "codelab@3"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "CodeLab",
+      "properties": {
+        "codelab.api.baseUrl": {
+          "type": "string",
+          "default": "http://localhost:8000",
+          "description": "Backend API base URL"
+        },
+        "codelab.api.timeout": {
+          "type": "number",
+          "default": 30000,
+          "description": "Request timeout in milliseconds"
+        },
+        "codelab.api.retryAttempts": {
+          "type": "number",
+          "default": 3,
+          "minimum": 1,
+          "maximum": 10,
+          "description": "Number of retry attempts for failed requests"
+        },
+        "codelab.api.streamingEnabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable Streaming Fetch API for real-time updates"
+        },
+        "codelab.context.maxFileSize": {
+          "type": "number",
+          "default": 1048576,
+          "description": "Maximum file size to include in context (bytes)"
+        },
+        "codelab.context.maxFiles": {
+          "type": "number",
+          "default": 100,
+          "description": "Maximum number of workspace files to include"
+        },
+        "codelab.context.maxContextSize": {
+          "type": "number",
+          "default": 10485760,
+          "description": "Maximum total context size (bytes)"
+        }
+      }
+    }
   },
   "scripts": {
     "vscode:prepublish": "npm run package",
@@ -31,7 +140,11 @@
     "pretest": "npm run compile-tests && npm run compile && npm run lint",
     "check-types": "tsc --noEmit",
     "lint": "eslint src",
-    "test": "vscode-test"
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "zod": "^3.23.8"
   },
   "devDependencies": {
     "@types/vscode": "^1.109.0",
@@ -43,6 +156,8 @@
     "npm-run-all": "^4.1.5",
     "typescript": "^5.9.3",
     "@vscode/test-cli": "^0.0.12",
-    "@vscode/test-electron": "^2.5.2"
+    "@vscode/test-electron": "^2.5.2",
+    "vitest": "^2.1.0",
+    "@vitest/ui": "^2.1.0"
   }
 }

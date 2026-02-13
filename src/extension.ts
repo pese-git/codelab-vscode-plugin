@@ -1,26 +1,53 @@
-// The module 'vscode' contains the VS Code extensibility API
-// Import the module and reference it with the alias vscode in your code below
 import * as vscode from 'vscode';
+import { CodeLabAPI } from './api';
+import { ChatViewProvider } from './ui/ChatViewProvider';
+import { registerCommands } from './commands';
 
-// This method is called when your extension is activated
-// Your extension is activated the very first time the command is executed
 export function activate(context: vscode.ExtensionContext) {
-
-	// Use the console to output diagnostic information (console.log) and errors (console.error)
-	// This line of code will only be executed once when your extension is activated
-	console.log('Congratulations, your extension "codelab-vscode-plugin" is now active!');
-
-	// The command has been defined in the package.json file
-	// Now provide the implementation of the command with registerCommand
-	// The commandId parameter must match the command field in package.json
-	const disposable = vscode.commands.registerCommand('codelab-vscode-plugin.helloWorld', () => {
-		// The code you place here will be executed every time your command is executed
-		// Display a message box to the user
-		vscode.window.showInformationMessage('Hello World from codelab-vscode-plugin!');
-	});
-
-	context.subscriptions.push(disposable);
+  console.log('CodeLab extension is now active');
+  
+  // Initialize API
+  const api = new CodeLabAPI(context);
+  
+  // Register WebView Provider
+  const chatViewProvider = new ChatViewProvider(context.extensionUri, api);
+  context.subscriptions.push(
+    vscode.window.registerWebviewViewProvider(
+      ChatViewProvider.viewType,
+      chatViewProvider
+    )
+  );
+  
+  // Register commands
+  registerCommands(context, api);
+  
+  // Cleanup on deactivation
+  context.subscriptions.push({
+    dispose: () => {
+      api.dispose();
+    }
+  });
+  
+  // Check if API token is set
+  checkApiToken(context);
 }
 
-// This method is called when your extension is deactivated
-export function deactivate() {}
+async function checkApiToken(context: vscode.ExtensionContext): Promise<void> {
+  const token = await context.secrets.get('codelab.apiToken');
+  
+  if (!token) {
+    const choice = await vscode.window.showInformationMessage(
+      'CodeLab API token is not set. Would you like to set it now?',
+      'Set Token',
+      'Later'
+    );
+    
+    if (choice === 'Set Token') {
+      await vscode.commands.executeCommand('codelab.setApiToken');
+    }
+  }
+}
+
+export function deactivate() {
+  console.log('CodeLab extension is now deactivated');
+}

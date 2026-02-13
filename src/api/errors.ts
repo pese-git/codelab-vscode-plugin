@@ -36,7 +36,7 @@ export async function withRetry<T>(
   maxAttempts: number = 3,
   baseDelay: number = 1000
 ): Promise<T> {
-  let lastError: Error;
+  let lastError: Error | undefined;
   
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
     try {
@@ -52,10 +52,12 @@ export async function withRetry<T>(
       if (attempt < maxAttempts - 1) {
         // Exponential backoff with jitter
         const delay = baseDelay * Math.pow(2, attempt) + Math.random() * 1000;
-        await new Promise(resolve => setTimeout(resolve, delay));
+        await new Promise<void>(resolve => setTimeout(resolve, delay));
       }
     }
   }
   
-  throw lastError!;
+  throw new Error(
+    `Failed after ${maxAttempts} attempts: ${lastError?.message || 'Unknown error'}`
+  );
 }

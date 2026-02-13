@@ -19,17 +19,18 @@ describe('APIClient', () => {
   });
   
   it('should create session', async () => {
+    const mockSessionId = '550e8400-e29b-41d4-a716-446655440000';
     global.fetch = vi.fn().mockResolvedValue({
       ok: true,
       json: async () => ({
-        id: 'session-123',
+        id: mockSessionId,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       })
     }) as any;
     
     const session = await client.createSession();
-    expect(session.id).toBe('session-123');
+    expect(session.id).toBe(mockSessionId);
   });
   
   it('should handle 401 error', async () => {

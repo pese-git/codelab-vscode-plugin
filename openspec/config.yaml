@@ -1,0 +1,114 @@
+schema: spec-driven
+
+# Project context
+context: |
+  # CodeLab VS Code Plugin
+  
+  ## Tech Stack
+  
+  ### Core
+  - **TypeScript 5.9+** - строгая типизация, современный синтаксис
+  - **VS Code Extension API 1.109+** - последняя стабильная версия
+  - **Node.js 22.x** - LTS версия с современными возможностями
+  
+  ### Build & Development
+  - **esbuild 0.27+** - быстрый bundler для extension
+  - **Vite 5.x** - современный bundler для WebView UI
+  - **ESLint 9.x** - линтинг с flat config
+  - **typescript-eslint 8.x** - TypeScript правила для ESLint
+  - **Vitest** - быстрый test runner (вместо Mocha)
+  
+  ### UI Layer (WebView)
+  - **React 18.3+** - UI framework с concurrent features
+  - **TypeScript** - полная типизация UI
+  - **CSS Modules** - изолированные стили
+  - **marked 14.x** - markdown rendering с безопасностью
+  - **highlight.js 11.x** - syntax highlighting
+  - **@tanstack/react-virtual** - виртуализация для больших списков
+  
+  ### API & Networking
+  - **Fetch API** - нативный HTTP client для REST
+  - **Streaming Fetch API** - ReadableStream для real-time streaming
+  - **AbortController** - управление запросами и отмена
+  
+  ### Code Quality & Testing
+  - **Vitest** - unit и integration тесты
+  - **@testing-library/react** - тестирование React компонентов
+  - **@vscode/test-electron** - E2E тесты для extension
+  - **Prettier 3.x** - форматирование кода
+  - **husky** - git hooks для pre-commit проверок
+  - **lint-staged** - линтинг staged файлов
+  
+  ### Type Safety & Validation
+  - **Zod** - runtime валидация и type inference
+  - **TypeScript strict mode** - максимальная строгость
+  
+  ## Architecture Principles
+  - **Thin client architecture**: плагин не содержит AI-логики
+  - **Separation of concerns**: четкое разделение UI, API, Context, Diff
+  - **Type safety first**: строгая типизация на всех уровнях
+  - **Performance by default**: lazy loading, code splitting, мемоизация
+  - **Security by design**: CSP, SecretStorage, input validation
+  - **Testability**: dependency injection, mock-friendly архитектура
+  
+  ## Domain
+  AI-ассистент для разработчиков с глубоким контекстом проекта.
+  Поддержка всех языков программирования через LSP.
+  Real-time streaming ответов через Streaming Fetch API.
+  
+  ## Conventions
+  - **Commits**: conventional commits (feat, fix, docs, refactor, test, chore)
+  - **Code style**: Prettier + ESLint, 2 spaces, single quotes
+  - **Naming**: camelCase для переменных, PascalCase для типов/компонентов
+  - **Files**: kebab-case для файлов, PascalCase для React компонентов
+  - **Imports**: абсолютные пути через tsconfig paths
+  - **Error handling**: typed errors, never throw strings
+  - **Async**: async/await, избегать callbacks
+  
+  ## Performance Targets
+  - Extension activation: ≤ 100ms
+  - WebView load: ≤ 200ms
+  - Context collection: ≤ 500ms
+  - UI interaction: ≤ 16ms (60 FPS)
+  - Memory usage: ≤ 50MB idle, ≤ 200MB active
+  
+  ## Security Requirements
+  - CSP для WebView (no eval, no inline scripts)
+  - SecretStorage для токенов (never plaintext)
+  - Input validation на всех границах
+  - Sanitization путей файлов
+  - HTTPS only для production
+  - Rate limiting на client side
+  
+  ## Key Requirements
+  - Плагин собирает контекст (файлы, выделенный код, diagnostics, symbols)
+  - Backend обрабатывает запросы и возвращает ответы
+  - Изменения применяются через unified diff и WorkspaceEdit
+  - Streaming ответов через Streaming Fetch API (ReadableStream)
+  - LSP интеграция для получения diagnostics и symbols
+  - React UI с TypeScript для WebView
+  - Полное покрытие тестами (≥80%)
+
+# Per-artifact rules
+rules:
+  proposal:
+    - Учитывать thin client архитектуру
+    - Минимизировать логику в плагине
+    - Всегда указывать взаимодействие с backend
+    - Использовать современные паттерны (async/await, typed errors)
+    - Предусматривать тестируемость
+  
+  tasks:
+    - Разбивать задачи на модули (UI, Context, API, LSP, Diff)
+    - Максимальная длительность задачи: 4 часа
+    - Указывать зависимости между задачами
+    - Включать unit тесты в каждую задачу
+    - Учитывать performance targets
+  
+  delta-spec:
+    - Следовать структуре проекта src/
+    - Учитывать VS Code Extension API ограничения
+    - Обеспечивать безопасность (CSP, no eval)
+    - Использовать TypeScript strict mode
+    - Включать Zod схемы для валидации
+    - Предусматривать error handling

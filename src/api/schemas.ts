@@ -12,8 +12,8 @@ export type HealthResponse = z.infer<typeof HealthResponseSchema>;
 // Chat Session
 export const ChatSessionResponseSchema = z.object({
   id: z.string().uuid(),
-  created_at: z.string().datetime(),
-  updated_at: z.string().datetime()
+  created_at: z.string(), // API возвращает datetime без 'Z', используем string
+  message_count: z.number().optional() // Опциональное поле
 });
 
 export type ChatSessionResponse = z.infer<typeof ChatSessionResponseSchema>;

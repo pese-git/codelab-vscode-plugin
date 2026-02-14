@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { CodeLabAPI } from '../api';
+import { CodeLabAPI, APIError, ValidationError, NetworkError } from '../api';
 import { DiffEngine } from '../diff/engine';
 
 export class ChatViewProvider implements vscode.WebviewViewProvider {
@@ -14,6 +14,22 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
   ) {
     this.diffEngine = new DiffEngine();
     this.setupAPIHandlers();
+  }
+  
+  private isAuthError(error: any): boolean {
+    return (error instanceof APIError && error.status === 401) ||
+           error?.message?.includes('Not authenticated');
+  }
+  
+  private async handleAuthError(): Promise<void> {
+    const action = await vscode.window.showErrorMessage(
+      'API token not set or expired. Please set your CodeLab API token.',
+      'Set Token'
+    );
+    
+    if (action === 'Set Token') {
+      await vscode.commands.executeCommand('codelab.setApiToken');
+    }
   }
   
   public resolveWebviewView(
@@ -222,11 +238,38 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
       case 'sendMessage':
         try {
           await this.api.sendMessage(message.content);
-        } catch (error) {
-          this.postMessage({
-            type: 'error',
-            payload: { message: String(error) }
-          });
+        } catch (error: any) {
+          console.error('Error sending message:', error);
+          
+          if (this.isAuthError(error)) {
+            await this.handleAuthError();
+            this.postMessage({
+              type: 'error',
+              payload: { message: 'Authentication required. Please set your API token.' }
+            });
+          } else if (error instanceof ValidationError) {
+            console.error('Validation error details:', error.getDetails());
+            this.postMessage({
+              type: 'error',
+              payload: { message: `Validation error: ${error.message}` }
+            });
+            vscode.window.showErrorMessage(`Validation error: ${error.message}`);
+          } else if (error instanceof NetworkError) {
+            this.postMessage({
+              type: 'error',
+              payload: { message: `Network error: ${error.message}` }
+            });
+          } else if (error instanceof APIError) {
+            this.postMessage({
+              type: 'error',
+              payload: { message: `API error (${error.status}): ${error.message}` }
+            });
+          } else {
+            this.postMessage({
+              type: 'error',
+              payload: { message: `Error: ${error.message || String(error)}` }
+            });
+          }
         }
         break;
         
@@ -276,18 +319,36 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
   }
   
   private async sendInitialState(): Promise<void> {
-    const sessionId = await this.api.getCurrentSessionId();
-    const messages = sessionId 
-      ? await this.api.getMessageHistory(sessionId)
-      : { messages: [], total: 0, session_id: '' };
-    
-    this.postMessage({
-      type: 'initialState',
-      payload: {
-        sessionId,
-        messages: messages.messages
+    try {
+      const sessionId = await this.api.getCurrentSessionId();
+      const messages = sessionId
+        ? await this.api.getMessageHistory(sessionId)
+        : { messages: [], total: 0, session_id: '' };
+      
+      this.postMessage({
+        type: 'initialState',
+        payload: {
+          sessionId,
+          messages: messages.messages
+        }
+      });
+    } catch (error: any) {
+      // Если ошибка аутентификации или любая другая, отправляем пустое состояние
+      if (!this.isAuthError(error)) {
+        console.error('Failed to load initial state:', error);
+        if (error instanceof ValidationError) {
+          console.error('Validation error details:', error.getDetails());
+        }
       }
-    });
+      
+      this.postMessage({
+        type: 'initialState',
+        payload: {
+          sessionId: undefined,
+          messages: []
+        }
+      });
+    }
   }
   
   private async startNewChat(): Promise<void> {
@@ -295,8 +356,17 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
       await this.api.createNewSession();
       this.postMessage({ type: 'newChatCreated' });
       vscode.window.showInformationMessage('New chat session created');
-    } catch (error) {
-      vscode.window.showErrorMessage(`Failed to create new chat: ${error}`);
+    } catch (error: any) {
+      console.error('Error creating new chat:', error);
+      
+      if (this.isAuthError(error)) {
+        await this.handleAuthError();
+      } else if (error instanceof ValidationError) {
+        console.error('Validation error details:', error.getDetails());
+        vscode.window.showErrorMessage(`Validation error: ${error.message}`);
+      } else {
+        vscode.window.showErrorMessage(`Failed to create new chat: ${error.message || String(error)}`);
+      }
     }
   }
 }

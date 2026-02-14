@@ -26,8 +26,12 @@ export class ValidationError extends Error {
     message: string,
     public zodError: z.ZodError
   ) {
-    super(message);
+    super(`${message}: ${zodError.errors.map(e => `${e.path.join('.')}: ${e.message}`).join(', ')}`);
     this.name = 'ValidationError';
+  }
+  
+  getDetails(): string {
+    return JSON.stringify(this.zodError.errors, null, 2);
   }
 }
 
@@ -44,8 +48,12 @@ export async function withRetry<T>(
     } catch (error) {
       lastError = error as Error;
       
-      // Не retry на client errors (4xx)
+      // Не retry на client errors (4xx) и ValidationError
       if (error instanceof APIError && error.status >= 400 && error.status < 500) {
+        throw error;
+      }
+      
+      if (error instanceof ValidationError) {
         throw error;
       }
       
@@ -57,7 +65,6 @@ export async function withRetry<T>(
     }
   }
   
-  throw new Error(
-    `Failed after ${maxAttempts} attempts: ${lastError?.message || 'Unknown error'}`
-  );
+  // Пробрасываем оригинальную ошибку вместо создания новой
+  throw lastError || new Error('Unknown error after retry');
 }

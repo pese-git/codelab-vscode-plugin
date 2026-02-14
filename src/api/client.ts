@@ -43,9 +43,10 @@ export class APIClient {
     }
     
     const url = `${this.config.baseUrl}${endpoint}`;
-    const headers = {
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
       ...this.authManager.getAuthHeaders(token),
-      ...options.headers
+      ...(options.headers as Record<string, string> || {})
     };
     
     const controller = new AbortController();
@@ -61,15 +62,42 @@ export class APIClient {
       clearTimeout(timeoutId);
       
       if (!response.ok) {
-        const error: any = await response.json().catch(() => ({ detail: 'Unknown error' }));
-        throw new APIError(response.status, error.error_code || 'UNKNOWN', error.detail || 'Unknown error');
+        let errorMessage = 'Unknown error';
+        let errorCode = 'UNKNOWN';
+        
+        try {
+          const contentType = response.headers.get('content-type');
+          if (contentType?.includes('application/json')) {
+            const error: any = await response.json();
+            errorMessage = error.detail || error.message || errorMessage;
+            errorCode = error.error_code || error.code || errorCode;
+          } else {
+            errorMessage = await response.text() || errorMessage;
+          }
+        } catch {
+          // Игнорируем ошибки парсинга
+        }
+        
+        throw new APIError(response.status, errorCode, errorMessage);
       }
       
       const data = await response.json();
       
       // Validate response with Zod if schema provided
       if (schema) {
-        return schema.parse(data);
+        try {
+          return schema.parse(data);
+        } catch (error) {
+          if (error instanceof z.ZodError) {
+            console.error('Response validation failed:', {
+              endpoint,
+              errors: error.errors,
+              data
+            });
+            throw new ValidationError('Response validation failed', error);
+          }
+          throw error;
+        }
       }
       
       return data as T;
@@ -82,10 +110,6 @@ export class APIClient {
       
       if ((error as any).name === 'AbortError') {
         throw new NetworkError('Request timeout');
-      }
-      
-      if (error instanceof z.ZodError) {
-        throw new ValidationError('Response validation failed', error);
       }
       
       throw new NetworkError('Network request failed', error as Error);

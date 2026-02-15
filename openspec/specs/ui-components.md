@@ -2,7 +2,16 @@
 
 ## Обзор
 
-Спецификация пользовательского интерфейса VS Code плагина CodeLab. UI реализован через WebView в Sidebar с использованием **React 18.3+** для создания интерактивного чат-интерфейса.
+Спецификация пользовательского интерфейса VS Code плагина CodeLab. UI реализован через WebView в Sidebar с использованием **React 18.3+** и **@vscode/webview-ui-toolkit** для создания интерактивного чат-интерфейса с нативным VS Code стилем.
+
+### Ключевые особенности
+
+- **Нативный VS Code UI** - использование официального UI Toolkit от Microsoft
+- **Автоматическая поддержка тем** - все компоненты адаптируются к темам VS Code
+- **Accessibility из коробки** - ARIA атрибуты и keyboard navigation
+- **React 18.3+** - современный UI framework с concurrent features
+- **TypeScript** - полная типизация для безопасности разработки
+- **Vite** - быстрая сборка и hot reload
 
 ## Технологический стек UI
 
@@ -11,9 +20,16 @@
 - **TypeScript 5.9+** - полная типизация
 - **Vite 5.x** - современный bundler для WebView
 
+### UI Components
+- **@vscode/webview-ui-toolkit** - официальный React UI toolkit от Microsoft для VS Code WebView
+  - Готовые компоненты с нативным VS Code стилем
+  - Автоматическая поддержка всех тем VS Code
+  - Accessibility из коробки
+  - Компоненты: Button, TextField, TextArea, Dropdown, Checkbox, Radio, ProgressRing, Badge, Divider, Link, Tag, DataGrid
+
 ### Styling
-- **CSS Modules** - изолированные стили с локальными именами
-- **VS Code CSS Variables** - интеграция с темами VS Code
+- **VS Code Design Tokens** - встроенные в @vscode/webview-ui-toolkit
+- **CSS Custom Properties** - для кастомизации компонентов
 
 ### Content Rendering
 - **marked 14.x** - безопасный markdown rendering
@@ -29,6 +45,7 @@
 - **@types/react 18.x** - типы для React
 - **@types/react-dom 18.x** - типы для ReactDOM
 - **@vitejs/plugin-react 4.x** - Vite plugin для React
+- **@types/vscode-webview** - типы для VS Code WebView API
 
 ## Архитектура UI
 
@@ -452,6 +469,7 @@ export function useMessages() {
 ```typescript
 // webview/src/components/ChatHeader.tsx
 import React from 'react';
+import { VSCodeButton } from '@vscode/webview-ui-toolkit/react';
 import styles from './ChatHeader.module.css';
 
 interface ChatHeaderProps {
@@ -461,22 +479,22 @@ interface ChatHeaderProps {
 export const ChatHeader: React.FC<ChatHeaderProps> = React.memo(({ onNewChat }) => {
   return (
     <div className={styles.header}>
-      <button 
-        className={styles.iconButton}
+      <VSCodeButton
+        appearance="icon"
         onClick={onNewChat}
         title="New Chat"
         aria-label="Start new chat"
       >
-        <i className="codicon codicon-add" />
-      </button>
+        <span className="codicon codicon-add" />
+      </VSCodeButton>
       <h2 className={styles.title}>CodeLab</h2>
-      <button 
-        className={styles.iconButton}
+      <VSCodeButton
+        appearance="icon"
         title="Settings"
         aria-label="Open settings"
       >
-        <i className="codicon codicon-settings-gear" />
-      </button>
+        <span className="codicon codicon-settings-gear" />
+      </VSCodeButton>
     </div>
   );
 });
@@ -687,6 +705,7 @@ function formatTime(timestamp: string): string {
 ```typescript
 // webview/src/components/Message/ProgressMessage.tsx
 import React from 'react';
+import { VSCodeProgressRing } from '@vscode/webview-ui-toolkit/react';
 import type { Message } from '../../types';
 import styles from './Message.module.css';
 
@@ -700,21 +719,11 @@ export const ProgressMessage: React.FC<ProgressMessageProps> = React.memo(({ mes
   return (
     <div className={`${styles.message} ${styles.progressMessage}`}>
       <div className={styles.avatar}>
-        <i className="codicon codicon-loading codicon-modifier-spin" />
+        <VSCodeProgressRing />
       </div>
       <div className={styles.content}>
         <div className={styles.progressInfo}>
           <div className={styles.progressText}>{message.content}</div>
-          <div className={styles.progressBar}>
-            <div 
-              className={styles.progressFill} 
-              style={{ width: `${progress}%` }}
-              role="progressbar"
-              aria-valuenow={progress}
-              aria-valuemin={0}
-              aria-valuemax={100}
-            />
-          </div>
           <div className={styles.progressPercent}>{progress}%</div>
         </div>
       </div>
@@ -731,6 +740,7 @@ ProgressMessage.displayName = 'ProgressMessage';
 // webview/src/components/CodeBlock.tsx
 import React, { useState, useMemo } from 'react';
 import hljs from 'highlight.js';
+import { VSCodeButton } from '@vscode/webview-ui-toolkit/react';
 import { useVSCode } from '../hooks/useVSCode';
 import styles from './CodeBlock.module.css';
 
@@ -765,17 +775,17 @@ export const CodeBlock: React.FC<CodeBlockProps> = React.memo(({ code, language 
     <div className={styles.codeBlock}>
       <div className={styles.header}>
         <span className={styles.language}>{language}</span>
-        <button 
-          className={styles.copyButton}
+        <VSCodeButton
+          appearance="secondary"
           onClick={handleCopy}
           aria-label={copied ? 'Code copied' : 'Copy code'}
         >
-          <i className={`codicon codicon-${copied ? 'check' : 'copy'}`} />
+          <span slot="start" className={`codicon codicon-${copied ? 'check' : 'copy'}`} />
           {copied ? 'Copied!' : 'Copy'}
-        </button>
+        </VSCodeButton>
       </div>
       <pre className={styles.pre}>
-        <code 
+        <code
           className={`language-${language}`}
           dangerouslySetInnerHTML={{ __html: highlightedCode }}
         />
@@ -792,6 +802,7 @@ CodeBlock.displayName = 'CodeBlock';
 ```typescript
 // webview/src/components/ActionButtons.tsx
 import React from 'react';
+import { VSCodeButton } from '@vscode/webview-ui-toolkit/react';
 import { useVSCode } from '../hooks/useVSCode';
 import styles from './ActionButtons.module.css';
 
@@ -800,9 +811,9 @@ interface ActionButtonsProps {
   hasDiff: boolean;
 }
 
-export const ActionButtons: React.FC<ActionButtonsProps> = React.memo(({ 
-  messageId, 
-  hasDiff 
+export const ActionButtons: React.FC<ActionButtonsProps> = React.memo(({
+  messageId,
+  hasDiff
 }) => {
   const vscode = useVSCode();
   
@@ -823,23 +834,23 @@ export const ActionButtons: React.FC<ActionButtonsProps> = React.memo(({
   return (
     <div className={styles.actions}>
       {hasDiff && (
-        <button 
-          className={styles.applyButton} 
+        <VSCodeButton
+          appearance="primary"
           onClick={handleApply}
           aria-label="Apply code changes"
         >
-          <i className="codicon codicon-check" />
+          <span slot="start" className="codicon codicon-check" />
           Apply Changes
-        </button>
+        </VSCodeButton>
       )}
-      <button 
-        className={styles.retryButton} 
+      <VSCodeButton
+        appearance="secondary"
         onClick={handleRetry}
         aria-label="Retry request"
       >
-        <i className="codicon codicon-refresh" />
+        <span slot="start" className="codicon codicon-refresh" />
         Retry
-      </button>
+      </VSCodeButton>
     </div>
   );
 });
@@ -852,6 +863,7 @@ ActionButtons.displayName = 'ActionButtons';
 ```typescript
 // webview/src/components/ChatInput.tsx
 import React, { useState, useRef, useEffect } from 'react';
+import { VSCodeButton, VSCodeTextArea } from '@vscode/webview-ui-toolkit/react';
 import styles from './ChatInput.module.css';
 
 interface ChatInputProps {
@@ -887,38 +899,44 @@ export const ChatInput: React.FC<ChatInputProps> = React.memo(({ onSend, disable
     }
   };
   
+  const handleInput = (e: Event | React.FormEvent<HTMLElement>) => {
+    const target = e.target as HTMLTextAreaElement;
+    setValue(target.value);
+  };
+  
   return (
     <div className={styles.inputArea}>
-      <button 
-        className={styles.iconButton}
+      <VSCodeButton
+        appearance="icon"
         title="Attach file"
         disabled={disabled}
         aria-label="Attach file"
       >
-        <i className="codicon codicon-paperclip" />
-      </button>
+        <span className="codicon codicon-paperclip" />
+      </VSCodeButton>
       
-      <textarea
+      <VSCodeTextArea
         ref={textareaRef}
         className={styles.textarea}
         placeholder="Type your message..."
         value={value}
-        onChange={(e) => setValue(e.target.value)}
+        onInput={handleInput}
         onKeyDown={handleKeyDown}
         disabled={disabled}
         rows={1}
+        resize="vertical"
         aria-label="Message input"
       />
       
-      <button 
-        className={`${styles.iconButton} ${styles.primary}`}
+      <VSCodeButton
+        appearance="icon"
         onClick={handleSend}
         disabled={disabled || !value.trim()}
         title="Send"
         aria-label="Send message"
       >
-        <i className="codicon codicon-send" />
-      </button>
+        <span className="codicon codicon-send" />
+      </VSCodeButton>
     </div>
   );
 });
@@ -926,24 +944,22 @@ export const ChatInput: React.FC<ChatInputProps> = React.memo(({ onSend, disable
 ChatInput.displayName = 'ChatInput';
 ```
 
-## Styling with CSS Modules
+## Styling with VS Code Design Tokens
+
+### Global Styles
 
 ```css
-/* webview/src/styles/variables.css */
+/* webview/src/styles/global.css */
 :root {
-  /* VS Code theme variables */
-  --font-family: var(--vscode-font-family);
-  --foreground: var(--vscode-foreground);
-  --background: var(--vscode-editor-background);
-  --border: var(--vscode-panel-border);
+  /* VS Code Design Tokens автоматически доступны через @vscode/webview-ui-toolkit */
   
-  /* Spacing */
+  /* Custom spacing tokens */
   --spacing-xs: 4px;
   --spacing-sm: 8px;
   --spacing-md: 12px;
   --spacing-lg: 16px;
   
-  /* Sizes */
+  /* Custom sizes */
   --avatar-size: 32px;
   --icon-size: 16px;
   
@@ -951,7 +967,51 @@ ChatInput.displayName = 'ChatInput';
   --transition-fast: 150ms ease;
   --transition-normal: 250ms ease;
 }
+
+body {
+  margin: 0;
+  padding: 0;
+  font-family: var(--vscode-font-family);
+  color: var(--vscode-foreground);
+  background-color: var(--vscode-editor-background);
+}
+
+/* Codicons support */
+.codicon {
+  font-family: 'codicon';
+  font-size: 16px;
+  line-height: 1;
+}
 ```
+
+### Доступные VS Code Design Tokens
+
+Все токены автоматически доступны через CSS переменные:
+
+**Colors:**
+- `--vscode-foreground` - основной цвет текста
+- `--vscode-editor-background` - фон редактора
+- `--vscode-editor-foreground` - текст редактора
+- `--vscode-button-background` - фон кнопки
+- `--vscode-button-foreground` - текст кнопки
+- `--vscode-button-hoverBackground` - фон кнопки при hover
+- `--vscode-input-background` - фон input
+- `--vscode-input-foreground` - текст input
+- `--vscode-input-border` - граница input
+- `--vscode-progressBar-background` - фон прогресс-бара
+- `--vscode-panel-border` - граница панели
+- `--vscode-descriptionForeground` - цвет описания
+
+**Typography:**
+- `--vscode-font-family` - основной шрифт
+- `--vscode-font-size` - размер шрифта
+- `--vscode-font-weight` - толщина шрифта
+- `--vscode-editor-font-family` - шрифт редактора (моноширинный)
+
+**Focus:**
+- `--vscode-focusBorder` - цвет границы при фокусе
+
+### CSS Modules для кастомных стилей
 
 ```css
 /* webview/src/components/Message/Message.module.css */
@@ -995,6 +1055,7 @@ ChatInput.displayName = 'ChatInput';
   border-radius: 8px;
   background-color: var(--vscode-input-background);
   word-wrap: break-word;
+  color: var(--vscode-input-foreground);
 }
 
 .userMessage .text {
@@ -1010,19 +1071,50 @@ ChatInput.displayName = 'ChatInput';
   color: var(--vscode-descriptionForeground);
 }
 
-.progressBar {
-  width: 100%;
-  height: 4px;
-  background-color: var(--vscode-progressBar-background);
-  border-radius: 2px;
-  overflow: hidden;
-  margin: var(--spacing-sm) 0;
+.progressInfo {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
 }
 
-.progressFill {
-  height: 100%;
-  background-color: var(--vscode-progressBar-background);
-  transition: width var(--transition-normal);
+.progressText {
+  color: var(--vscode-foreground);
+}
+
+.progressPercent {
+  font-size: 12px;
+  color: var(--vscode-descriptionForeground);
+  text-align: right;
+}
+
+/* Markdown content styling */
+.markdown {
+  line-height: 1.6;
+}
+
+.markdown h1,
+.markdown h2,
+.markdown h3 {
+  color: var(--vscode-foreground);
+  margin-top: var(--spacing-md);
+  margin-bottom: var(--spacing-sm);
+}
+
+.markdown code {
+  font-family: var(--vscode-editor-font-family);
+  background-color: var(--vscode-textCodeBlock-background);
+  padding: 2px 4px;
+  border-radius: 3px;
+}
+
+.markdown a {
+  color: var(--vscode-textLink-foreground);
+  text-decoration: none;
+}
+
+.markdown a:hover {
+  color: var(--vscode-textLink-activeForeground);
+  text-decoration: underline;
 }
 ```
 
@@ -1084,6 +1176,7 @@ export default defineConfig({
   "dependencies": {
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
+    "@vscode/webview-ui-toolkit": "^1.4.0",
     "marked": "^14.0.0",
     "highlight.js": "^11.10.0",
     "@tanstack/react-virtual": "^3.10.0"
@@ -1091,6 +1184,7 @@ export default defineConfig({
   "devDependencies": {
     "@types/react": "^18.3.0",
     "@types/react-dom": "^18.3.0",
+    "@types/vscode-webview": "^1.57.0",
     "@vitejs/plugin-react": "^4.3.0",
     "typescript": "^5.9.3",
     "vite": "^5.4.0"
@@ -1130,6 +1224,216 @@ export default defineConfig({
   "references": [{ "path": "./tsconfig.node.json" }]
 }
 ```
+
+## Настройка @vscode/webview-ui-toolkit
+
+### Инициализация в main.tsx
+
+```typescript
+// webview/src/main.tsx
+import React from 'react';
+import ReactDOM from 'react-dom/client';
+import { App } from './App';
+import { provideVSCodeDesignSystem, vsCodeButton, vsCodeTextArea, vsCodeProgressRing } from '@vscode/webview-ui-toolkit';
+
+// Регистрация VS Code компонентов
+provideVSCodeDesignSystem().register(
+  vsCodeButton(),
+  vsCodeTextArea(),
+  vsCodeProgressRing()
+);
+
+ReactDOM.createRoot(document.getElementById('root')!).render(
+  <React.StrictMode>
+    <App />
+  </React.StrictMode>
+);
+```
+
+### Доступные компоненты
+
+#### Buttons
+- **VSCodeButton** - кнопки с appearance: `primary`, `secondary`, `icon`
+- Поддержка `slot="start"` и `slot="end"` для иконок
+
+#### Form Controls
+- **VSCodeTextField** - однострочный текстовый ввод
+- **VSCodeTextArea** - многострочный текстовый ввод с auto-resize
+- **VSCodeCheckbox** - чекбоксы
+- **VSCodeRadio** / **VSCodeRadioGroup** - радио-кнопки
+- **VSCodeDropdown** / **VSCodeOption** - выпадающие списки
+
+#### Feedback
+- **VSCodeProgressRing** - индикатор загрузки (spinner)
+- **VSCodeBadge** - бейджи для счетчиков
+- **VSCodeTag** - теги
+
+#### Layout
+- **VSCodeDivider** - разделители
+- **VSCodePanels** / **VSCodePanelTab** / **VSCodePanelView** - вкладки
+- **VSCodeDataGrid** - таблицы данных
+
+#### Navigation
+- **VSCodeLink** - ссылки
+
+### Преимущества использования
+
+1. **Автоматическая поддержка тем** - компоненты автоматически адаптируются ко всем темам VS Code
+2. **Accessibility** - ARIA атрибуты и keyboard navigation из коробки
+3. **Консистентность** - нативный VS Code look & feel
+4. **Меньше кастомного CSS** - не нужно писать стили для базовых компонентов
+5. **Web Components** - основаны на стандартных веб-компонентах с React обертками
+
+### Пример использования всех основных компонентов
+
+```typescript
+import {
+  VSCodeButton,
+  VSCodeTextField,
+  VSCodeTextArea,
+  VSCodeCheckbox,
+  VSCodeDropdown,
+  VSCodeOption,
+  VSCodeProgressRing,
+  VSCodeBadge,
+  VSCodeDivider,
+  VSCodeLink
+} from '@vscode/webview-ui-toolkit/react';
+
+export const ExampleComponent = () => {
+  return (
+    <div>
+      {/* Buttons */}
+      <VSCodeButton appearance="primary">Primary</VSCodeButton>
+      <VSCodeButton appearance="secondary">Secondary</VSCodeButton>
+      <VSCodeButton appearance="icon">
+        <span className="codicon codicon-gear" />
+      </VSCodeButton>
+      
+      {/* Text Input */}
+      <VSCodeTextField placeholder="Enter text..." />
+      <VSCodeTextArea rows={4} placeholder="Enter multiline text..." />
+      
+      {/* Checkbox */}
+      <VSCodeCheckbox>Enable feature</VSCodeCheckbox>
+      
+      {/* Dropdown */}
+      <VSCodeDropdown>
+        <VSCodeOption>Option 1</VSCodeOption>
+        <VSCodeOption>Option 2</VSCodeOption>
+      </VSCodeDropdown>
+      
+      {/* Progress */}
+      <VSCodeProgressRing />
+      
+      {/* Badge */}
+      <VSCodeBadge>5</VSCodeBadge>
+      
+      {/* Divider */}
+      <VSCodeDivider />
+      
+      {/* Link */}
+      <VSCodeLink href="#">Learn more</VSCodeLink>
+    </div>
+  );
+};
+```
+
+## Миграция на @vscode/webview-ui-toolkit
+
+### Шаги миграции
+
+1. **Установка зависимостей**
+   ```bash
+   cd webview
+   npm install @vscode/webview-ui-toolkit
+   npm install --save-dev @types/vscode-webview
+   ```
+
+2. **Регистрация компонентов в main.tsx**
+   ```typescript
+   import { provideVSCodeDesignSystem, allComponents } from '@vscode/webview-ui-toolkit';
+   provideVSCodeDesignSystem().register(allComponents());
+   ```
+
+3. **Замена HTML элементов на VS Code компоненты**
+   - `<button>` → `<VSCodeButton>`
+   - `<input type="text">` → `<VSCodeTextField>`
+   - `<textarea>` → `<VSCodeTextArea>`
+   - `<select>` → `<VSCodeDropdown>`
+   - `<input type="checkbox">` → `<VSCodeCheckbox>`
+
+4. **Удаление кастомных стилей для базовых компонентов**
+   - Удалить CSS для кнопок, инпутов, чекбоксов
+   - Оставить только layout и кастомные компоненты
+
+5. **Обновление event handlers**
+   - `onChange` → `onInput` для текстовых полей
+   - Использовать `e.target.value` для получения значений
+
+### Совместимость
+
+- **React 18+** - полная поддержка
+- **TypeScript** - типы включены в пакет
+- **Vite** - работает из коробки
+- **VS Code 1.60+** - минимальная версия
+
+### Лучшие практики
+
+1. **Используйте appearance для кнопок**
+   ```typescript
+   <VSCodeButton appearance="primary">Save</VSCodeButton>
+   <VSCodeButton appearance="secondary">Cancel</VSCodeButton>
+   <VSCodeButton appearance="icon"><span className="codicon codicon-gear" /></VSCodeButton>
+   ```
+
+2. **Используйте slot для иконок в кнопках**
+   ```typescript
+   <VSCodeButton>
+     <span slot="start" className="codicon codicon-save" />
+     Save File
+   </VSCodeButton>
+   ```
+
+3. **Комбинируйте с Codicons**
+   ```typescript
+   // Добавьте в index.html
+   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@vscode/codicons/dist/codicon.css">
+   ```
+
+4. **Используйте disabled состояние**
+   ```typescript
+   <VSCodeButton disabled={isLoading}>Submit</VSCodeButton>
+   ```
+
+5. **Кастомизация через CSS переменные**
+   ```css
+   vscode-button {
+     --button-padding-horizontal: 16px;
+     --button-padding-vertical: 8px;
+   }
+   ```
+
+### Отличия от обычного React
+
+1. **Web Components** - компоненты основаны на Web Components API
+2. **Event handling** - используйте `onInput` вместо `onChange` для форм
+3. **Refs** - работают стандартно, но возвращают HTMLElement
+4. **Slots** - используйте атрибут `slot` для позиционирования контента
+
+### Troubleshooting
+
+**Проблема:** Компоненты не отображаются
+- **Решение:** Убедитесь, что вызвали `provideVSCodeDesignSystem().register()`
+
+**Проблема:** Стили не применяются
+- **Решение:** Проверьте CSP в HTML, разрешите `style-src 'unsafe-inline'`
+
+**Проблема:** TypeScript ошибки
+- **Решение:** Установите `@types/vscode-webview` и добавьте в tsconfig.json
+
+**Проблема:** События не срабатывают
+- **Решение:** Используйте `onInput` вместо `onChange` для текстовых полей
 
 ## Performance Optimization
 

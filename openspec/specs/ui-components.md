@@ -464,6 +464,217 @@ export function useMessages() {
 
 ## React Components
 
+### SessionList Component
+
+```typescript
+// webview/src/components/SessionList.tsx
+import React from 'react';
+import { VSCodeButton } from '@vscode/webview-ui-toolkit/react';
+import type { ChatSession } from '../types';
+import styles from './SessionList.module.css';
+
+interface SessionListProps {
+  sessions: ChatSession[];
+  activeSessionId: string | null;
+  onSessionSelect: (sessionId: string) => void;
+  onSessionDelete: (sessionId: string) => void;
+  onNewSession: () => void;
+}
+
+export const SessionList: React.FC<SessionListProps> = React.memo(({
+  sessions,
+  activeSessionId,
+  onSessionSelect,
+  onSessionDelete,
+  onNewSession
+}) => {
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
+    
+    if (diffMins < 1) return 'Just now';
+    if (diffMins < 60) return `${diffMins}m ago`;
+    if (diffHours < 24) return `${diffHours}h ago`;
+    if (diffDays < 7) return `${diffDays}d ago`;
+    return date.toLocaleDateString();
+  };
+
+  return (
+    <div className={styles.container}>
+      <div className={styles.header}>
+        <h3 className={styles.title}>Chat Sessions</h3>
+        <VSCodeButton
+          appearance="icon"
+          onClick={onNewSession}
+          title="New Chat"
+          aria-label="Start new chat session"
+        >
+          <span className="codicon codicon-add" />
+        </VSCodeButton>
+      </div>
+      
+      <div className={styles.list}>
+        {sessions.length === 0 ? (
+          <div className={styles.empty}>
+            <p>No chat sessions yet</p>
+            <VSCodeButton onClick={onNewSession}>
+              Start New Chat
+            </VSCodeButton>
+          </div>
+        ) : (
+          sessions.map(session => (
+            <div
+              key={session.id}
+              className={`${styles.session} ${
+                session.id === activeSessionId ? styles.active : ''
+              }`}
+              onClick={() => onSessionSelect(session.id)}
+              role="button"
+              tabIndex={0}
+              aria-label={`Chat session from ${formatDate(session.created_at)}`}
+            >
+              <div className={styles.sessionInfo}>
+                <div className={styles.sessionMeta}>
+                  <span className={styles.date}>
+                    {formatDate(session.created_at)}
+                  </span>
+                  <span className={styles.messageCount}>
+                    {session.message_count} {session.message_count === 1 ? 'message' : 'messages'}
+                  </span>
+                </div>
+              </div>
+              
+              <VSCodeButton
+                appearance="icon"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onSessionDelete(session.id);
+                }}
+                title="Delete session"
+                aria-label="Delete this chat session"
+                className={styles.deleteButton}
+              >
+                <span className="codicon codicon-trash" />
+              </VSCodeButton>
+            </div>
+          ))
+        )}
+      </div>
+    </div>
+  );
+});
+
+SessionList.displayName = 'SessionList';
+```
+
+**CSS Module:**
+
+```css
+/* webview/src/components/SessionList.module.css */
+.container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  border-bottom: 1px solid var(--vscode-panel-border);
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--vscode-panel-border);
+}
+
+.title {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--vscode-foreground);
+}
+
+.list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 4px;
+}
+
+.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  text-align: center;
+  color: var(--vscode-descriptionForeground);
+}
+
+.session {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  margin: 2px 0;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.1s;
+}
+
+.session:hover {
+  background-color: var(--vscode-list-hoverBackground);
+}
+
+.session.active {
+  background-color: var(--vscode-list-activeSelectionBackground);
+  color: var(--vscode-list-activeSelectionForeground);
+}
+
+.sessionInfo {
+  flex: 1;
+  min-width: 0;
+}
+
+.sessionMeta {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.date {
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.messageCount {
+  font-size: 11px;
+  color: var(--vscode-descriptionForeground);
+}
+
+.deleteButton {
+  opacity: 0;
+  transition: opacity 0.1s;
+}
+
+.session:hover .deleteButton {
+  opacity: 1;
+}
+```
+
+**TypeScript Types:**
+
+```typescript
+// webview/src/types/index.ts
+export interface ChatSession {
+  id: string;
+  created_at: string;
+  message_count: number;
+}
+```
+
 ### ChatHeader Component
 
 ```typescript
@@ -474,11 +685,25 @@ import styles from './ChatHeader.module.css';
 
 interface ChatHeaderProps {
   onNewChat: () => void;
+  onToggleSessions?: () => void;
 }
 
-export const ChatHeader: React.FC<ChatHeaderProps> = React.memo(({ onNewChat }) => {
+export const ChatHeader: React.FC<ChatHeaderProps> = React.memo(({
+  onNewChat,
+  onToggleSessions
+}) => {
   return (
     <div className={styles.header}>
+      {onToggleSessions && (
+        <VSCodeButton
+          appearance="icon"
+          onClick={onToggleSessions}
+          title="Toggle Sessions"
+          aria-label="Toggle session list"
+        >
+          <span className="codicon codicon-list-unordered" />
+        </VSCodeButton>
+      )}
       <VSCodeButton
         appearance="icon"
         onClick={onNewChat}

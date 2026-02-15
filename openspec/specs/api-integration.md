@@ -178,10 +178,29 @@ export type HealthResponse = z.infer<typeof HealthResponseSchema>;
 export const ChatSessionResponseSchema = z.object({
   id: z.string().uuid(),
   created_at: z.string().datetime(),
-  updated_at: z.string().datetime()
+  message_count: z.number() // Количество сообщений в сессии
 });
 
 export type ChatSessionResponse = z.infer<typeof ChatSessionResponseSchema>;
+
+// Session List Response (GET /my/chat/sessions/)
+export const SessionListResponseSchema = z.object({
+  sessions: z.array(ChatSessionResponseSchema),
+  total: z.number()
+});
+
+export type SessionListResponse = z.infer<typeof SessionListResponseSchema>;
+
+// Message History Response (GET /my/chat/{session_id}/messages/)
+export const MessageHistoryResponseSchema = z.object({
+  messages: z.array(MessageResponseSchema),
+  total: z.number(),
+  session_id: z.string().uuid(),
+  limit: z.number().optional(),
+  offset: z.number().optional()
+});
+
+export type MessageHistoryResponse = z.infer<typeof MessageHistoryResponseSchema>;
 
 // Message
 export const MessageRequestSchema = z.object({
@@ -330,6 +349,21 @@ export class APIClient {
       '/my/chat/sessions/',
       { method: 'POST' },
       ChatSessionResponseSchema
+    );
+  }
+  
+  async listSessions(): Promise<SessionListResponse> {
+    return await this.request(
+      '/my/chat/sessions/',
+      { method: 'GET' },
+      SessionListResponseSchema
+    );
+  }
+  
+  async deleteSession(sessionId: string): Promise<void> {
+    await this.request(
+      `/my/chat/sessions/${sessionId}`,
+      { method: 'DELETE' }
     );
   }
   

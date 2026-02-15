@@ -1,0 +1,21 @@
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--spacing-md) var(--spacing-lg);
+  border-bottom: 1px solid var(--vscode-panel-border);
+  background-color: var(--vscode-sideBar-background);
+  flex-shrink: 0;
+}
+
+.title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--vscode-foreground);
+}
+
+.actions {
+  display: flex;
+  gap: var(--spacing-xs);
+}

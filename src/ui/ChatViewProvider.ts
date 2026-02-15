@@ -37,26 +37,49 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
     _context: vscode.WebviewViewResolveContext,
     _token: vscode.CancellationToken
   ) {
+    console.log('[ChatViewProvider] Resolving webview view...');
     this._view = webviewView;
     
     webviewView.webview.options = {
       enableScripts: true,
       localResourceRoots: [
-        vscode.Uri.joinPath(this._extensionUri, 'dist', 'webview')
+        vscode.Uri.joinPath(this._extensionUri, 'dist', 'webview'),
+        vscode.Uri.joinPath(this._extensionUri, 'node_modules', '@vscode', 'codicons')
       ]
     };
     
+    console.log('[ChatViewProvider] Setting webview HTML...');
     webviewView.webview.html = this._getHtmlForWebview(webviewView.webview);
+    console.log('[ChatViewProvider] Webview HTML set');
     
     // Handle messages from React app
     webviewView.webview.onDidReceiveMessage(
-      async (message) => await this._handleMessage(message)
+      async (message) => {
+        console.log('[ChatViewProvider] Received message from webview:', message);
+        await this._handleMessage(message);
+      }
     );
+    
+    console.log('[ChatViewProvider] Webview view resolved');
   }
   
   private _getHtmlForWebview(webview: vscode.Webview): string {
-    // For now, return a simple HTML placeholder
-    // In production, this would load the React app
+    const scriptUri = webview.asWebviewUri(
+      vscode.Uri.joinPath(this._extensionUri, 'dist', 'webview', 'index.js')
+    );
+    const styleUri = webview.asWebviewUri(
+      vscode.Uri.joinPath(this._extensionUri, 'dist', 'webview', 'index.css')
+    );
+    
+    // Codicons font
+    const codiconsUri = webview.asWebviewUri(
+      vscode.Uri.joinPath(this._extensionUri, 'node_modules', '@vscode/codicons', 'dist', 'codicon.css')
+    );
+    
+    console.log('[ChatViewProvider] Script URI:', scriptUri.toString());
+    console.log('[ChatViewProvider] Style URI:', styleUri.toString());
+    console.log('[ChatViewProvider] Codicons URI:', codiconsUri.toString());
+    
     const nonce = getNonce();
     
     return `<!DOCTYPE html>
@@ -64,171 +87,20 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
     <head>
       <meta charset="UTF-8">
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <meta http-equiv="Content-Security-Policy" 
-            content="default-src 'none'; 
-                     style-src ${webview.cspSource} 'unsafe-inline'; 
-                     script-src 'nonce-${nonce}'; 
+      <meta http-equiv="Content-Security-Policy"
+            content="default-src 'none';
+                     style-src ${webview.cspSource} 'unsafe-inline';
+                     script-src 'nonce-${nonce}';
                      font-src ${webview.cspSource};
-                     img-src ${webview.cspSource} https:;
+                     img-src ${webview.cspSource} https: data:;
                      connect-src ${webview.cspSource} https:;">
+      <link href="${codiconsUri}" rel="stylesheet">
+      <link href="${styleUri}" rel="stylesheet">
       <title>CodeLab Chat</title>
-      <style>
-        body {
-          padding: 0;
-          margin: 0;
-          font-family: var(--vscode-font-family);
-          color: var(--vscode-foreground);
-          background-color: var(--vscode-editor-background);
-        }
-        .container {
-          display: flex;
-          flex-direction: column;
-          height: 100vh;
-          padding: 16px;
-        }
-        .header {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          margin-bottom: 16px;
-          padding-bottom: 8px;
-          border-bottom: 1px solid var(--vscode-panel-border);
-        }
-        .messages {
-          flex: 1;
-          overflow-y: auto;
-          margin-bottom: 16px;
-        }
-        .message {
-          margin-bottom: 16px;
-          padding: 12px;
-          border-radius: 4px;
-          background-color: var(--vscode-input-background);
-        }
-        .message.user {
-          background-color: var(--vscode-button-background);
-          color: var(--vscode-button-foreground);
-        }
-        .input-area {
-          display: flex;
-          gap: 8px;
-        }
-        textarea {
-          flex: 1;
-          padding: 8px;
-          border: 1px solid var(--vscode-input-border);
-          background-color: var(--vscode-input-background);
-          color: var(--vscode-input-foreground);
-          font-family: var(--vscode-font-family);
-          resize: none;
-          min-height: 40px;
-        }
-        button {
-          padding: 8px 16px;
-          background-color: var(--vscode-button-background);
-          color: var(--vscode-button-foreground);
-          border: none;
-          cursor: pointer;
-        }
-        button:hover {
-          background-color: var(--vscode-button-hoverBackground);
-        }
-        button:disabled {
-          opacity: 0.5;
-          cursor: not-allowed;
-        }
-      </style>
     </head>
     <body>
-      <div class="container">
-        <div class="header">
-          <h2>CodeLab</h2>
-          <button id="newChat">New Chat</button>
-        </div>
-        <div class="messages" id="messages"></div>
-        <div class="input-area">
-          <textarea id="input" placeholder="Type your message..."></textarea>
-          <button id="send">Send</button>
-        </div>
-      </div>
-      <script nonce="${nonce}">
-        const vscode = acquireVsCodeApi();
-        const messagesDiv = document.getElementById('messages');
-        const input = document.getElementById('input');
-        const sendBtn = document.getElementById('send');
-        const newChatBtn = document.getElementById('newChat');
-        
-        let isLoading = false;
-        
-        function addMessage(content, role) {
-          const messageDiv = document.createElement('div');
-          messageDiv.className = 'message ' + role;
-          messageDiv.textContent = content;
-          messagesDiv.appendChild(messageDiv);
-          messagesDiv.scrollTop = messagesDiv.scrollHeight;
-        }
-        
-        function setLoading(loading) {
-          isLoading = loading;
-          sendBtn.disabled = loading;
-          input.disabled = loading;
-        }
-        
-        sendBtn.addEventListener('click', () => {
-          const content = input.value.trim();
-          if (!content || isLoading) return;
-          
-          addMessage(content, 'user');
-          vscode.postMessage({ type: 'sendMessage', content });
-          input.value = '';
-          setLoading(true);
-        });
-        
-        input.addEventListener('keydown', (e) => {
-          if (e.key === 'Enter' && !e.shiftKey) {
-            e.preventDefault();
-            sendBtn.click();
-          }
-        });
-        
-        newChatBtn.addEventListener('click', () => {
-          vscode.postMessage({ type: 'newChat' });
-        });
-        
-        window.addEventListener('message', (event) => {
-          const message = event.data;
-          
-          switch (message.type) {
-            case 'initialState':
-              messagesDiv.innerHTML = '';
-              message.payload.messages.forEach(msg => {
-                addMessage(msg.content, msg.role);
-              });
-              break;
-              
-            case 'taskStarted':
-              addMessage('Processing...', 'system');
-              break;
-              
-            case 'taskCompleted':
-              setLoading(false);
-              addMessage(message.payload.result, 'assistant');
-              break;
-              
-            case 'error':
-              setLoading(false);
-              addMessage('Error: ' + message.payload.message, 'system');
-              break;
-              
-            case 'newChatCreated':
-              messagesDiv.innerHTML = '';
-              break;
-          }
-        });
-        
-        // Notify extension that webview is ready
-        vscode.postMessage({ type: 'ready' });
-      </script>
+      <div id="root"></div>
+      <script type="module" nonce="${nonce}" src="${scriptUri}"></script>
     </body>
     </html>`;
   }

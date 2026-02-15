@@ -1,0 +1,28 @@
+{
+  "name": "codelab-webview",
+  "private": true,
+  "version": "0.0.1",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "type-check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "@vscode/webview-ui-toolkit": "^1.4.0",
+    "marked": "^14.0.0",
+    "highlight.js": "^11.10.0",
+    "@tanstack/react-virtual": "^3.10.0"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.0",
+    "@types/react-dom": "^18.3.0",
+    "@types/vscode-webview": "^1.57.5",
+    "@vitejs/plugin-react": "^4.3.0",
+    "typescript": "^5.9.3",
+    "vite": "^5.4.0"
+  }
+}

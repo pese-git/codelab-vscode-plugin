@@ -130,34 +130,39 @@
   },
   "scripts": {
     "vscode:prepublish": "npm run package",
-    "compile": "npm run check-types && npm run lint && node esbuild.js",
+    "compile": "npm run check-types && npm run lint && npm run compile:extension && npm run compile:webview",
+    "compile:extension": "node esbuild.js",
+    "compile:webview": "cd webview && npm run build",
     "watch": "npm-run-all -p watch:*",
     "watch:esbuild": "node esbuild.js --watch",
     "watch:tsc": "tsc --noEmit --watch --project tsconfig.json",
-    "package": "npm run check-types && npm run lint && node esbuild.js --production",
+    "watch:webview": "cd webview && npm run dev",
+    "package": "npm run check-types && npm run lint && node esbuild.js --production && cd webview && npm run build",
     "compile-tests": "tsc -p . --outDir out",
     "watch-tests": "tsc -p . -w --outDir out",
     "pretest": "npm run compile-tests && npm run compile && npm run lint",
     "check-types": "tsc --noEmit",
     "lint": "eslint src",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "install:all": "npm install && cd webview && npm install"
   },
   "dependencies": {
+    "@vscode/codicons": "^0.0.44",
     "zod": "^3.23.8"
   },
   "devDependencies": {
-    "@types/vscode": "^1.109.0",
     "@types/mocha": "^10.0.10",
     "@types/node": "22.x",
-    "typescript-eslint": "^8.54.0",
-    "eslint": "^9.39.2",
-    "esbuild": "^0.27.2",
-    "npm-run-all": "^4.1.5",
-    "typescript": "^5.9.3",
+    "@types/vscode": "^1.109.0",
+    "@vitest/ui": "^2.1.0",
     "@vscode/test-cli": "^0.0.12",
     "@vscode/test-electron": "^2.5.2",
-    "vitest": "^2.1.0",
-    "@vitest/ui": "^2.1.0"
+    "esbuild": "^0.27.2",
+    "eslint": "^9.39.2",
+    "npm-run-all": "^4.1.5",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.54.0",
+    "vitest": "^2.1.0"
   }
 }

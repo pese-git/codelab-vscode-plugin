@@ -23,6 +23,7 @@
 		"node_modules",
 		"dist",
 		"out",
+		"webview",
 		"**/*.test.ts",
 		"vitest.config.ts"
 	]

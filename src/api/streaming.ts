@@ -15,13 +15,13 @@ export class StreamingClient {
   
   async connect(): Promise<void> {
     this.abortController = new AbortController();
-    const url = `${this.baseUrl}/my/chat/${this.sessionId}/stream/`;
+    const url = `${this.baseUrl}/my/chat/${this.sessionId}/events/`;
     
     try {
       const response = await fetch(url, {
         headers: {
           'Authorization': `Bearer ${this.token}`,
-          'Accept': 'text/event-stream'
+          'Accept': 'application/x-ndjson'
         },
         signal: this.abortController.signal
       });
@@ -82,22 +82,21 @@ export class StreamingClient {
   private processLine(line: string): void {
     if (!line.trim()) {return;}
     
-    // Heartbeat
-    if (line.startsWith(': heartbeat')) {
-      this.onHeartbeat?.();
-      return;
-    }
-    
-    // Event data
-    if (line.startsWith('data: ')) {
-      try {
-        const eventData = JSON.parse(line.substring(6));
-        const event = StreamEventSchema.parse(eventData);
-        this.handleEvent(event);
-      } catch (error) {
-        console.error('Failed to parse event:', error);
-        this.onError?.(error as Error);
+    try {
+      // NDJSON format - каждая строка это JSON объект
+      const eventData = JSON.parse(line);
+      const event = StreamEventSchema.parse(eventData);
+      
+      // Обработка heartbeat событий
+      if (event.event_type === 'heartbeat') {
+        this.onHeartbeat?.();
+        return;
       }
+      
+      this.handleEvent(event);
+    } catch (error) {
+      console.error('Failed to parse event:', error);
+      this.onError?.(error as Error);
     }
   }
   

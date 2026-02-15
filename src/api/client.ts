@@ -44,10 +44,17 @@ export class APIClient {
     
     const url = `${this.config.baseUrl}${endpoint}`;
     const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
+      'Content-Type': 'application/json; charset=utf-8',
       ...this.authManager.getAuthHeaders(token),
       ...(options.headers as Record<string, string> || {})
     };
+    
+    // Исправление для UTF-8 в VSCode Extension Host
+    // Используем Blob для правильной кодировки
+    let body = options.body;
+    if (typeof body === 'string') {
+      body = new Blob([body], { type: 'application/json; charset=utf-8' });
+    }
     
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), this.config.timeout);
@@ -55,6 +62,7 @@ export class APIClient {
     try {
       const response = await fetch(url, {
         ...options,
+        body,
         headers,
         signal: controller.signal
       });

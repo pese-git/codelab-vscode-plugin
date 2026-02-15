@@ -28,6 +28,7 @@ export type SessionListResponse = z.infer<typeof SessionListResponseSchema>;
 // Message
 export const MessageRequestSchema = z.object({
   content: z.string().min(1),
+  target_agent: z.string().optional(), // Опциональное поле для прямого режима
   context: z.object({
     activeFile: z.object({
       path: z.string(),
@@ -56,8 +57,8 @@ export const MessageResponseSchema = z.object({
   id: z.string().uuid(),
   content: z.string(),
   role: z.enum(['user', 'assistant', 'system']),
-  timestamp: z.string().datetime(),
-  agent_id: z.string().optional(),
+  timestamp: z.string(), // API может возвращать datetime без 'Z'
+  agent_id: z.string().uuid().nullable(), // API возвращает null, а не undefined
   diff: z.string().optional()
 });
 

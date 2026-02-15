@@ -79,7 +79,8 @@ export const StreamEventSchema = z.object({
     'task_progress',
     'task_completed',
     'error',
-    'heartbeat'
+    'heartbeat',
+    'direct_agent_call'
   ]),
   payload: z.any(),
   session_id: z.string().uuid(),

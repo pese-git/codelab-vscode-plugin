@@ -299,8 +299,11 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
   
   private async switchSession(sessionId: string): Promise<void> {
     try {
-      await this.api.switchSession(sessionId);
+      // Сначала проверяем, существует ли сессия, загрузив её историю
       const messages = await this.api.getMessageHistory(sessionId);
+      
+      // Если история загружена успешно, переключаемся
+      await this.api.switchSession(sessionId);
       
       this.postMessage({
         type: 'sessionSwitched',
@@ -314,6 +317,10 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
       
       if (this.isAuthError(error)) {
         await this.handleAuthError();
+      } else if (error instanceof APIError && error.status === 404) {
+        vscode.window.showWarningMessage('Session not found. It may have been deleted.');
+        // Обновляем список сессий
+        await this.loadSessions();
       } else {
         vscode.window.showErrorMessage(`Failed to switch session: ${error.message || String(error)}`);
       }

@@ -111,6 +111,37 @@ export class CodeLabAPI {
     return await this.client.getMessageHistory(sessionId);
   }
   
+  async listSessions() {
+    return await withRetry(() => this.client.listSessions());
+  }
+  
+  async switchSession(sessionId: string): Promise<void> {
+    await this.context.globalState.update('currentSessionId', sessionId);
+    
+    // Reconnect streaming to new session
+    if (this.streamingClient) {
+      this.streamingClient.disconnect();
+      this.streamingClient = null;
+    }
+    
+    await this.connectStreaming(sessionId);
+  }
+  
+  async deleteSession(sessionId: string): Promise<void> {
+    await withRetry(() => this.client.deleteSession(sessionId));
+    
+    // If deleting current session, clear it
+    const currentSessionId = await this.getCurrentSessionId();
+    if (currentSessionId === sessionId) {
+      await this.context.globalState.update('currentSessionId', undefined);
+      
+      if (this.streamingClient) {
+        this.streamingClient.disconnect();
+        this.streamingClient = null;
+      }
+    }
+  }
+  
   async createNewSession(): Promise<string> {
     const session = await withRetry(() => this.client.createSession());
     await this.context.globalState.update('currentSessionId', session.id);

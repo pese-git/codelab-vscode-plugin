@@ -4,15 +4,34 @@ import styles from './ChatHeader.module.css';
 
 interface ChatHeaderProps {
   onNewChat: () => void;
+  onToggleSessions?: () => void;
+  showSessions?: boolean;
 }
 
-export const ChatHeader: React.FC<ChatHeaderProps> = React.memo(({ onNewChat }) => {
-  console.log('[ChatHeader] Rendering...');
+export const ChatHeader: React.FC<ChatHeaderProps> = React.memo(({
+  onNewChat,
+  onToggleSessions,
+  showSessions = false
+}) => {
+  console.log('[ChatHeader] Rendering...', { showSessions });
   
   return (
     <div className={styles.header}>
       <h2 className={styles.title}>CodeLab</h2>
       <div className={styles.actions}>
+        {onToggleSessions && (
+          <VSCodeButton
+            appearance="icon"
+            onClick={() => {
+              console.log('[ChatHeader] Sessions button clicked');
+              onToggleSessions();
+            }}
+            title={showSessions ? "Hide Sessions" : "Show Sessions"}
+            aria-label={showSessions ? "Hide sessions list" : "Show sessions list"}
+          >
+            <span className={`codicon ${showSessions ? 'codicon-chevron-up' : 'codicon-list-unordered'}`} />
+          </VSCodeButton>
+        )}
         <VSCodeButton
           appearance="icon"
           onClick={() => {

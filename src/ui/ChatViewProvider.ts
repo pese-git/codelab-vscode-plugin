@@ -162,6 +162,18 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
         await this.startNewChat();
         break;
         
+      case 'loadSessions':
+        await this.loadSessions();
+        break;
+        
+      case 'switchSession':
+        await this.switchSession(message.sessionId);
+        break;
+        
+      case 'deleteSession':
+        await this.deleteSession(message.sessionId);
+        break;
+        
       case 'ready':
         await this.sendInitialState();
         break;
@@ -226,7 +238,8 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
   private async startNewChat(): Promise<void> {
     try {
       await this.api.createNewSession();
-      this.postMessage({ type: 'newChatCreated' });
+      await this.sendInitialState();
+      await this.loadSessions();
       vscode.window.showInformationMessage('New chat session created');
     } catch (error: any) {
       console.error('Error creating new chat:', error);
@@ -238,6 +251,87 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
         vscode.window.showErrorMessage(`Validation error: ${error.message}`);
       } else {
         vscode.window.showErrorMessage(`Failed to create new chat: ${error.message || String(error)}`);
+      }
+    }
+  }
+  
+  private async loadSessions(): Promise<void> {
+    try {
+      const response = await this.api.listSessions();
+      
+      // Обогащаем сессии информацией о последнем сообщении
+      const sessionsWithDetails = await Promise.all(
+        response.sessions.map(async (session: any) => {
+          try {
+            const history = await this.api.getMessageHistory(session.id);
+            const lastMessage = history.messages[history.messages.length - 1];
+            
+            return {
+              ...session,
+              last_message: lastMessage?.content?.substring(0, 100),
+              last_message_time: lastMessage?.timestamp
+            };
+          } catch {
+            return session;
+          }
+        })
+      );
+      
+      this.postMessage({
+        type: 'sessionsLoaded',
+        payload: {
+          sessions: sessionsWithDetails
+        }
+      });
+    } catch (error: any) {
+      console.error('Error loading sessions:', error);
+      
+      if (this.isAuthError(error)) {
+        await this.handleAuthError();
+      } else {
+        this.postMessage({
+          type: 'sessionsLoaded',
+          payload: { sessions: [] }
+        });
+      }
+    }
+  }
+  
+  private async switchSession(sessionId: string): Promise<void> {
+    try {
+      await this.api.switchSession(sessionId);
+      const messages = await this.api.getMessageHistory(sessionId);
+      
+      this.postMessage({
+        type: 'sessionSwitched',
+        payload: {
+          sessionId,
+          messages: messages.messages
+        }
+      });
+    } catch (error: any) {
+      console.error('Error switching session:', error);
+      
+      if (this.isAuthError(error)) {
+        await this.handleAuthError();
+      } else {
+        vscode.window.showErrorMessage(`Failed to switch session: ${error.message || String(error)}`);
+      }
+    }
+  }
+  
+  private async deleteSession(sessionId: string): Promise<void> {
+    try {
+      await this.api.deleteSession(sessionId);
+      await this.loadSessions();
+      vscode.window.showInformationMessage('Session deleted');
+    } catch (error: any) {
+      console.error('Error deleting session:', error);
+      
+      if (this.isAuthError(error)) {
+        await this.handleAuthError();
+      } else {
+        vscode.window.showErrorMessage(`Failed to delete session: ${error.message || String(error)}`);
       }
     }
   }

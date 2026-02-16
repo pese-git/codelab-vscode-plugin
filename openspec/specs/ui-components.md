@@ -87,6 +87,8 @@
 │  ┌───────────────────────────────┐ │
 │  │  <ChatInput />                │ │
 │  │  [📎] [Начните новый чат...] │ │
+│  │  ─────────────────────────    │ │
+│  │  [🤖 Auto ▼]                  │ │
 │  └───────────────────────────────┘ │
 └─────────────────────────────────────┘
 ```
@@ -114,6 +116,8 @@
 │  ┌───────────────────────────────┐ │
 │  │  <ChatInput />                │ │
 │  │  [📎] [Type message...] [▶]  │ │
+│  │  ─────────────────────────    │ │
+│  │  [🤖 Auto ▼]                  │ │
 │  └───────────────────────────────┘ │
 └─────────────────────────────────────┘
 ```
@@ -135,6 +139,7 @@ webview/
 │   │   │   ├── ProgressMessage.tsx
 │   │   │   └── Message.module.css
 │   │   ├── ChatInput.tsx
+│   │   ├── AgentSelector.tsx
 │   │   ├── CodeBlock.tsx
 │   │   └── ActionButtons.tsx
 │   ├── hooks/
@@ -509,6 +514,16 @@ export interface Message {
   isProgress?: boolean;
   progress?: number;
   diff?: string;
+}
+
+export interface Agent {
+  id: string;
+  name: string;
+  status?: string;
+  icon?: string;
+  description?: string;
+  config?: Record<string, any>;
+  created_at?: string;
 }
 
 export interface VSCodeAPI {
@@ -1214,11 +1229,22 @@ import { VSCodeButton, VSCodeTextArea } from '@vscode/webview-ui-toolkit/react';
 import styles from './ChatInput.module.css';
 
 interface ChatInputProps {
-  onSend: (content: string) => void;
+  onSend: (content: string, targetAgent?: string) => void;
   disabled?: boolean;
+  placeholder?: string;
+  agents?: Agent[];
+  selectedAgent?: Agent | null;
+  onAgentChange?: (agent: Agent | null) => void;
 }
 
-export const ChatInput: React.FC<ChatInputProps> = React.memo(({ onSend, disabled }) => {
+export const ChatInput: React.FC<ChatInputProps> = React.memo(({
+  onSend,
+  disabled,
+  placeholder = 'Type your message...',
+  agents = [],
+  selectedAgent = null,
+  onAgentChange
+}) => {
   const [value, setValue] = useState('');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   
@@ -1290,6 +1316,170 @@ export const ChatInput: React.FC<ChatInputProps> = React.memo(({ onSend, disable
 
 ChatInput.displayName = 'ChatInput';
 ```
+
+### AgentSelector Component
+
+Компонент для выбора агента, с которым будет общаться пользователь. Расположен под полем ввода сообщения.
+
+```typescript
+// webview/src/components/AgentSelector.tsx
+import React, { useState, useRef, useEffect } from 'react';
+import type { Agent } from '../types';
+import styles from './AgentSelector.module.css';
+
+interface AgentSelectorProps {
+  agents: Agent[];
+  selectedAgent: Agent | null;
+  onSelectAgent: (agent: Agent | null) => void;
+  disabled?: boolean;
+}
+
+export const AgentSelector: React.FC<AgentSelectorProps> = ({
+  agents,
+  selectedAgent,
+  onSelectAgent,
+  disabled = false
+}) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Закрываем dropdown при клике вне компонента
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+
+    if (isOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isOpen]);
+
+  const getAgentIcon = (agent: Agent | null) => {
+    if (!agent) return '🤖';
+    if (agent.icon) return agent.icon;
+    
+    const name = agent.name.toLowerCase();
+    const iconMap: Record<string, string> = {
+      'code': '💻',
+      'data': '📊',
+      'document': '📝',
+      'architect': '🏗️',
+      'ask': '❓',
+      'debug': '🪲',
+      'orchestrator': '🪃',
+      'default': '🤖'
+    };
+    
+    for (const [key, icon] of Object.entries(iconMap)) {
+      if (name.includes(key)) return icon;
+    }
+    
+    return iconMap['default'];
+  };
+
+  const getAgentDescription = (agent: Agent) => {
+    if (agent.description) return agent.description;
+    if (agent.config?.system_prompt) {
+      const prompt = agent.config.system_prompt as string;
+      return prompt.length > 100 ? prompt.substring(0, 100) + '...' : prompt;
+    }
+    return undefined;
+  };
+
+  const displayAgent = selectedAgent || {
+    id: 'auto',
+    name: 'Auto',
+    status: 'auto',
+    description: 'Автоматический выбор агента'
+  };
+
+  return (
+    <div className={styles.agentSelector} ref={dropdownRef}>
+      <button
+        className={`${styles.selectorButton} ${disabled ? styles.disabled : ''}`}
+        onClick={() => !disabled && setIsOpen(!isOpen)}
+        disabled={disabled}
+        aria-label="Выбрать агента"
+        aria-expanded={isOpen}
+      >
+        <span className={styles.agentIcon}>{getAgentIcon(selectedAgent)}</span>
+        <span className={styles.agentName}>{displayAgent.name}</span>
+        <span className={`${styles.arrow} ${isOpen ? styles.arrowUp : ''}`}>
+          <span className="codicon codicon-chevron-down" />
+        </span>
+      </button>
+
+      {isOpen && (
+        <div className={styles.dropdown}>
+          <div className={styles.dropdownHeader}>Выберите агента</div>
+          
+          {/* Auto option */}
+          <button
+            className={`${styles.agentOption} ${!selectedAgent ? styles.selected : ''}`}
+            onClick={() => { onSelectAgent(null); setIsOpen(false); }}
+          >
+            <span className={styles.agentIcon}>🤖</span>
+            <div className={styles.agentInfo}>
+              <div className={styles.agentOptionName}>Auto</div>
+              <div className={styles.agentDescription}>Автоматический выбор агента</div>
+            </div>
+            {!selectedAgent && (
+              <span className={styles.checkmark}>
+                <span className="codicon codicon-check" />
+              </span>
+            )}
+          </button>
+
+          <div className={styles.divider} />
+
+          {/* Agent list */}
+          {agents.map((agent) => {
+            const description = getAgentDescription(agent);
+            return (
+              <button
+                key={agent.id}
+                className={`${styles.agentOption} ${selectedAgent?.id === agent.id ? styles.selected : ''}`}
+                onClick={() => { onSelectAgent(agent); setIsOpen(false); }}
+              >
+                <span className={styles.agentIcon}>{getAgentIcon(agent)}</span>
+                <div className={styles.agentInfo}>
+                  <div className={styles.agentOptionName}>{agent.name}</div>
+                  {description && (
+                    <div className={styles.agentDescription}>{description}</div>
+                  )}
+                </div>
+                {selectedAgent?.id === agent.id && (
+                  <span className={styles.checkmark}>
+                    <span className="codicon codicon-check" />
+                  </span>
+                )}
+              </button>
+            );
+          })}
+
+          {agents.length === 0 && (
+            <div className={styles.emptyState}>Нет доступных агентов</div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
+```
+
+**Особенности:**
+- Dropdown открывается вверх (над селектором), так как компонент находится внизу экрана
+- Автоматическое определение иконок по имени агента
+- Извлечение описания из `config.system_prompt`
+- Режим "Auto" для автоматического выбора агента сервером
+- Закрытие при клике вне компонента
+- Анимация появления dropdown
 
 ## Styling with VS Code Design Tokens
 

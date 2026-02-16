@@ -1,4 +1,6 @@
 import React, { useRef, useEffect } from 'react';
+import { SimpleUserMessage } from './Message/SimpleUserMessage';
+import { SimpleAssistantMessage } from './Message/SimpleAssistantMessage';
 import type { Message } from '../types';
 import styles from './MessageList.module.css';
 
@@ -31,33 +33,12 @@ export const MessageList: React.FC<MessageListProps> = ({ messages }) => {
   
   return (
     <div className={styles.container} ref={parentRef}>
-      {messages.map((message) => (
-        <div
-          key={message.id}
-          style={{
-            padding: '12px',
-            marginBottom: '8px',
-            borderRadius: '4px',
-            backgroundColor: message.role === 'user'
-              ? 'var(--vscode-input-background)'
-              : 'var(--vscode-editor-background)',
-            border: '1px solid var(--vscode-panel-border)'
-          }}
-        >
-          <div style={{
-            fontWeight: 'bold',
-            marginBottom: '4px',
-            color: message.role === 'user'
-              ? 'var(--vscode-textLink-foreground)'
-              : 'var(--vscode-textPreformat-foreground)'
-          }}>
-            {message.role === 'user' ? 'You' : 'Assistant'}
-          </div>
-          <div style={{ whiteSpace: 'pre-wrap' }}>
-            {message.content}
-          </div>
-        </div>
-      ))}
+      {messages.map((message) => {
+        if (message.role === 'user') {
+          return <SimpleUserMessage key={message.id} message={message} />;
+        }
+        return <SimpleAssistantMessage key={message.id} message={message} />;
+      })}
     </div>
   );
 };

@@ -80,7 +80,8 @@ export const StreamEventSchema = z.object({
     'task_completed',
     'error',
     'heartbeat',
-    'direct_agent_call'
+    'direct_agent_call',
+    'message_created'
   ]),
   payload: z.any(),
   session_id: z.string().uuid(),

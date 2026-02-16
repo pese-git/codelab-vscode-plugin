@@ -97,6 +97,11 @@ export class CodeLabAPI {
       this.onTaskCompleted?.(payload);
     });
     
+    this.streamingClient.on('message_created', (payload) => {
+      console.log('[CodeLabAPI] message_created event received:', payload);
+      this.onMessageCreated?.(payload);
+    });
+    
     this.streamingClient.on('error', (payload) => {
       this.onError?.(payload);
     });
@@ -114,6 +119,7 @@ export class CodeLabAPI {
   onTaskStarted?: (payload: any) => void;
   onTaskProgress?: (payload: any) => void;
   onTaskCompleted?: (payload: any) => void;
+  onMessageCreated?: (payload: any) => void;
   onError?: (payload: any) => void;
   
   async getCurrentSessionId(): Promise<string | undefined> {

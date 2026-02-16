@@ -132,6 +132,22 @@ export const App: React.FC = () => {
           state.addMessage(assistantMessage);
           break;
           
+        case 'messageCreated':
+          console.log('[App] Message created:', message.payload);
+          state.setIsLoading(false);
+          
+          // Добавляем сообщение от ассистента
+          const newMessage = {
+            id: message.payload.id || `msg-${Date.now()}`,
+            role: message.payload.role as 'user' | 'assistant' | 'system',
+            content: message.payload.content,
+            timestamp: message.payload.timestamp || new Date().toISOString(),
+            agentId: message.payload.agent_id
+          };
+          console.log('[App] Adding message from messageCreated:', newMessage);
+          state.addMessage(newMessage);
+          break;
+          
         case 'codeCopied':
           console.log('[App] Code copied notification');
           break;

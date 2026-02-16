@@ -197,6 +197,11 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
       this.postMessage({ type: 'taskCompleted', payload });
     };
     
+    this.api.onMessageCreated = (payload) => {
+      console.log('[ChatViewProvider] message_created event received:', payload);
+      this.postMessage({ type: 'messageCreated', payload });
+    };
+    
     this.api.onError = (payload) => {
       this.postMessage({ type: 'error', payload });
     };

@@ -19,7 +19,8 @@ export const App: React.FC = () => {
   
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [sessions, setSessions] = useState<ChatSession[]>([]);
-  const [showSessions, setShowSessions] = useState(false);
+  // Показываем список сессий, когда нет активной сессии или нет сообщений
+  const [view, setView] = useState<'sessions' | 'chat'>('sessions');
   
   useEffect(() => {
     console.log('[App] Mount effect running...');
@@ -42,6 +43,10 @@ export const App: React.FC = () => {
           setSessionId(message.payload.sessionId);
           clearMessages();
           message.payload.messages.forEach((msg: Message) => addMessage(msg));
+          // Если есть сообщения, переключаемся на чат
+          if (message.payload.messages.length > 0) {
+            setView('chat');
+          }
           break;
           
         case 'sessionsLoaded':
@@ -54,7 +59,7 @@ export const App: React.FC = () => {
           setSessionId(message.payload.sessionId);
           clearMessages();
           message.payload.messages.forEach((msg: Message) => addMessage(msg));
-          setShowSessions(false);
+          setView('chat');
           break;
           
         case 'taskStarted':
@@ -112,6 +117,11 @@ export const App: React.FC = () => {
   const handleSendMessage = (content: string) => {
     console.log('[App] Sending message:', content);
     
+    // Если нет активной сессии, создаём новую
+    if (!sessionId) {
+      vscode.postMessage({ type: 'newChat' });
+    }
+    
     // Add user message to UI immediately
     addMessage({
       id: `user-${Date.now()}`,
@@ -127,6 +137,8 @@ export const App: React.FC = () => {
     });
     
     setIsLoading(true);
+    // Переключаемся на вид чата при отправке сообщения
+    setView('chat');
   };
   
   const handleNewChat = () => {
@@ -134,7 +146,7 @@ export const App: React.FC = () => {
     vscode.postMessage({ type: 'newChat' });
     clearMessages();
     setSessionId(null);
-    setShowSessions(false);
+    setView('sessions');
   };
   
   const handleSessionSelect = (selectedSessionId: string) => {
@@ -157,40 +169,53 @@ export const App: React.FC = () => {
     if (sessionIdToDelete === sessionId) {
       clearMessages();
       setSessionId(null);
+      setView('sessions');
     }
   };
   
-  const toggleSessions = () => {
-    setShowSessions(prev => !prev);
-    if (!showSessions) {
-      // Reload sessions when opening
-      vscode.postMessage({ type: 'loadSessions' });
-    }
+  const handleBackToSessions = () => {
+    setView('sessions');
   };
   
-  console.log('[App] Rendering UI components...');
+  console.log('[App] Rendering UI components...', { view, sessionId, messagesCount: messages.length });
   
   return (
     <div className="app">
-      <ChatHeader
-        onNewChat={handleNewChat}
-        onToggleSessions={toggleSessions}
-        showSessions={showSessions}
-      />
-      {showSessions && (
-        <SessionList
-          sessions={sessions}
-          currentSessionId={sessionId}
-          onSessionSelect={handleSessionSelect}
-          onNewSession={handleNewChat}
-          onDeleteSession={handleDeleteSession}
-        />
+      {view === 'sessions' ? (
+        // Экран списка сессий с инпутом внизу (как в Roo Code)
+        <>
+          <ChatHeader
+            onNewChat={handleNewChat}
+            showBackButton={false}
+          />
+          <SessionList
+            sessions={sessions}
+            currentSessionId={sessionId}
+            onSessionSelect={handleSessionSelect}
+            onNewSession={handleNewChat}
+            onDeleteSession={handleDeleteSession}
+          />
+          <ChatInput
+            onSend={handleSendMessage}
+            disabled={isLoading}
+            placeholder="Начните новый чат или выберите сессию выше..."
+          />
+        </>
+      ) : (
+        // Экран чата
+        <>
+          <ChatHeader
+            onNewChat={handleNewChat}
+            onBack={handleBackToSessions}
+            showBackButton={true}
+          />
+          <MessageList messages={messages} />
+          <ChatInput
+            onSend={handleSendMessage}
+            disabled={isLoading}
+          />
+        </>
       )}
-      <MessageList messages={messages} />
-      <ChatInput
-        onSend={handleSendMessage}
-        disabled={isLoading}
-      />
     </div>
   );
 };

@@ -82,7 +82,15 @@ export function SessionList({
       <div className={styles.list}>
         {filteredSessions.length === 0 ? (
           <div className={styles.empty}>
-            {searchQuery ? 'No sessions found' : 'No sessions yet'}
+            <div className={styles.emptyIcon}>💬</div>
+            <div className={styles.emptyText}>
+              {searchQuery ? 'Сессии не найдены' : 'Недавние задачи'}
+            </div>
+            {!searchQuery && (
+              <div className={styles.emptyText} style={{ opacity: 0.7, fontSize: '12px' }}>
+                Начните новый чат, введя сообщение ниже
+              </div>
+            )}
           </div>
         ) : (
           filteredSessions.map((session) => (

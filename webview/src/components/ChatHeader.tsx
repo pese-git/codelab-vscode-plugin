@@ -4,48 +4,50 @@ import styles from './ChatHeader.module.css';
 
 interface ChatHeaderProps {
   onNewChat: () => void;
-  onToggleSessions?: () => void;
-  showSessions?: boolean;
+  onBack?: () => void;
+  showBackButton?: boolean;
 }
 
 export const ChatHeader: React.FC<ChatHeaderProps> = React.memo(({
   onNewChat,
-  onToggleSessions,
-  showSessions = false
+  onBack,
+  showBackButton = false
 }) => {
-  console.log('[ChatHeader] Rendering...', { showSessions });
+  console.log('[ChatHeader] Rendering...', { showBackButton });
   
   return (
     <div className={styles.header}>
-      <h2 className={styles.title}>CodeLab</h2>
-      <div className={styles.actions}>
-        {onToggleSessions && (
+      <div className={styles.leftSection}>
+        {showBackButton && onBack && (
           <VSCodeButton
             appearance="icon"
             onClick={() => {
-              console.log('[ChatHeader] Sessions button clicked');
-              onToggleSessions();
+              console.log('[ChatHeader] Back button clicked');
+              onBack();
             }}
-            title={showSessions ? "Hide Sessions" : "Show Sessions"}
-            aria-label={showSessions ? "Hide sessions list" : "Show sessions list"}
+            title="Назад к сессиям"
+            aria-label="Back to sessions"
           >
-            <span className={`codicon ${showSessions ? 'codicon-chevron-up' : 'codicon-list-unordered'}`} />
+            <span className="codicon codicon-arrow-left" />
           </VSCodeButton>
         )}
+        <h2 className={styles.title}>CodeLab</h2>
+      </div>
+      <div className={styles.actions}>
         <VSCodeButton
           appearance="icon"
           onClick={() => {
             console.log('[ChatHeader] New chat button clicked');
             onNewChat();
           }}
-          title="New Chat"
+          title="Новый чат"
           aria-label="Start new chat"
         >
           <span className="codicon codicon-add" />
         </VSCodeButton>
         <VSCodeButton
           appearance="icon"
-          title="Settings"
+          title="Настройки"
           aria-label="Open settings"
           onClick={() => console.log('[ChatHeader] Settings button clicked')}
         >

@@ -5,9 +5,10 @@ import styles from './ChatInput.module.css';
 interface ChatInputProps {
   onSend: (content: string) => void;
   disabled?: boolean;
+  placeholder?: string;
 }
 
-export const ChatInput: React.FC<ChatInputProps> = React.memo(({ onSend, disabled }) => {
+export const ChatInput: React.FC<ChatInputProps> = React.memo(({ onSend, disabled, placeholder = 'Type your message...' }) => {
   console.log('[ChatInput] Rendering, disabled:', disabled);
   
   const [value, setValue] = useState('');
@@ -65,7 +66,7 @@ export const ChatInput: React.FC<ChatInputProps> = React.memo(({ onSend, disable
       <VSCodeTextArea
         ref={textareaRef}
         className={styles.textarea}
-        placeholder="Type your message..."
+        placeholder={placeholder}
         value={value}
         onInput={handleInput}
         onKeyDown={handleKeyDown}

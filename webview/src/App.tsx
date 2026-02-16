@@ -33,10 +33,10 @@ export const App: React.FC = () => {
   }, [view]);
   
   // Используем ref для хранения актуальных значений без пересоздания обработчика
-  const stateRef = useRef({ addMessage, setMessagesDirectly, clearMessages, updateProgress, setIsLoading, setSessionId, setSessions, setView });
+  const stateRef = useRef({ addMessage, setMessagesDirectly, clearMessages, updateProgress, setIsLoading, setSessionId, setSessions, setView, vscode });
   
   // Обновляем ref при каждом рендере (не вызывает ререндер)
-  stateRef.current = { addMessage, setMessagesDirectly, clearMessages, updateProgress, setIsLoading, setSessionId, setSessions, setView };
+  stateRef.current = { addMessage, setMessagesDirectly, clearMessages, updateProgress, setIsLoading, setSessionId, setSessions, setView, vscode };
   
   // Создаем обработчик один раз при первом рендере
   const handleMessageRef = useRef<((event: MessageEvent) => void) | null>(null);
@@ -59,6 +59,8 @@ export const App: React.FC = () => {
           }
           // Всегда показываем список сессий при старте
           state.setView('sessions');
+          // Запрашиваем обновление списка сессий
+          state.vscode.postMessage({ type: 'loadSessions' });
           break;
           
         case 'sessionsLoaded':

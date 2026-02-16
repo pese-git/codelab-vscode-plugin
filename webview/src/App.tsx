@@ -116,14 +116,20 @@ export const App: React.FC = () => {
           
         case 'taskCompleted':
           console.log('[App] Task completed:', message.payload);
+          console.log('[App] Task completed - result:', message.payload.result);
+          console.log('[App] Task completed - error:', message.payload.error);
+          console.log('[App] Task completed - task_id:', message.payload.task_id);
           state.setIsLoading(false);
-          state.addMessage({
+          
+          const assistantMessage = {
             id: message.payload.task_id || `task-${Date.now()}`,
-            role: 'assistant',
+            role: 'assistant' as const,
             content: message.payload.result || message.payload.error || 'Task completed',
             timestamp: message.payload.timestamp || new Date().toISOString(),
             agentId: message.payload.agent_id
-          });
+          };
+          console.log('[App] Adding assistant message:', assistantMessage);
+          state.addMessage(assistantMessage);
           break;
           
         case 'codeCopied':

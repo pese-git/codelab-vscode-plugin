@@ -44,8 +44,8 @@ export const ChatInput: React.FC<ChatInputProps> = React.memo(({
       return;
     }
     
-    console.log('[ChatInput] Sending message:', content, 'targetAgent:', selectedAgent?.id);
-    onSend(content, selectedAgent?.id);
+    console.log('[ChatInput] Sending message:', content, 'targetAgent:', selectedAgent?.name);
+    onSend(content, selectedAgent?.name);
     setValue('');
   };
   

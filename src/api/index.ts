@@ -20,21 +20,31 @@ export class CodeLabAPI {
   }
   
   async sendMessage(content: string, targetAgent?: string): Promise<void> {
+    console.log('[CodeLabAPI] sendMessage called with:', { content, targetAgent });
+    
     // 1. Создать сессию если нужно
     let sessionId = this.context.globalState.get<string>('currentSessionId');
+    console.log('[CodeLabAPI] Current session ID:', sessionId);
+    
     if (!sessionId) {
+      console.log('[CodeLabAPI] No session ID, creating new session...');
       const session = await withRetry(() => this.client.createSession());
       sessionId = session.id;
       await this.context.globalState.update('currentSessionId', sessionId);
+      console.log('[CodeLabAPI] New session created:', sessionId);
     }
     
     // 2. Подключить streaming если еще не подключен
     if (!this.streamingClient) {
+      console.log('[CodeLabAPI] Streaming client not connected, connecting...');
       await this.connectStreaming(sessionId);
+      console.log('[CodeLabAPI] Streaming client connected');
     }
     
     // 3. Собрать контекст
+    console.log('[CodeLabAPI] Collecting project context...');
     const projectContext = await this.contextCollector.collectContext();
+    console.log('[CodeLabAPI] Project context collected:', projectContext);
     
     // 4. Отправить сообщение
     const request: MessageRequest = {
@@ -43,9 +53,11 @@ export class CodeLabAPI {
       context: projectContext
     };
     
+    console.log('[CodeLabAPI] Sending message to backend...', request);
     await withRetry(() =>
       this.client.sendMessage(sessionId!, request)
     );
+    console.log('[CodeLabAPI] Message sent successfully');
     
     // 5. События будут приходить через streaming
   }

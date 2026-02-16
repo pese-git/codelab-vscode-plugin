@@ -1,4 +1,3 @@
-import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { App } from './App';
 import { 
@@ -30,9 +29,7 @@ if (!rootElement) {
   
   console.log('[main] Rendering App component...');
   root.render(
-    <React.StrictMode>
-      <App />
-    </React.StrictMode>
+    <App />
   );
   console.log('[main] App component rendered');
 }

@@ -107,6 +107,15 @@ export class CodeLabAPI {
     return this.context.globalState.get<string>('currentSessionId');
   }
   
+  async clearCurrentSessionId(): Promise<void> {
+    await this.context.globalState.update('currentSessionId', undefined);
+    
+    if (this.streamingClient) {
+      this.streamingClient.disconnect();
+      this.streamingClient = null;
+    }
+  }
+  
   async getMessageHistory(sessionId: string) {
     return await this.client.getMessageHistory(sessionId);
   }
@@ -124,7 +133,10 @@ export class CodeLabAPI {
       this.streamingClient = null;
     }
     
-    await this.connectStreaming(sessionId);
+    // Подключаем streaming в фоне, не блокируя переключение сессии
+    this.connectStreaming(sessionId).catch(error => {
+      console.error('Failed to connect streaming for session:', sessionId, error);
+    });
   }
   
   async deleteSession(sessionId: string): Promise<void> {

@@ -179,7 +179,7 @@ export class APIClient {
     offset: number = 0
   ): Promise<MessageHistoryResponse> {
     return await this.request(
-      `/my/chat/${sessionId}/messages/?limit=${limit}&offset=${offset}`,
+      `/my/chat/sessions/${sessionId}/messages/?limit=${limit}&offset=${offset}`,
       { method: 'GET' },
       MessageHistoryResponseSchema
     );

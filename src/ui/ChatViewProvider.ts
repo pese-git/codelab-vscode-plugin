@@ -203,11 +203,16 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
   }
   
   private async sendInitialState(): Promise<void> {
+    console.log('[ChatViewProvider] sendInitialState called');
     try {
       const sessionId = await this.api.getCurrentSessionId();
+      console.log('[ChatViewProvider] Current session ID:', sessionId);
+      
       const messages = sessionId
         ? await this.api.getMessageHistory(sessionId)
         : { messages: [], total: 0, session_id: '' };
+      
+      console.log('[ChatViewProvider] Messages loaded:', messages.messages.length);
       
       this.postMessage({
         type: 'initialState',
@@ -216,15 +221,25 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
           messages: messages.messages
         }
       });
+      console.log('[ChatViewProvider] initialState message sent');
     } catch (error: any) {
+      console.error('[ChatViewProvider] Error in sendInitialState:', error);
+      
       // Если ошибка аутентификации или любая другая, отправляем пустое состояние
       if (!this.isAuthError(error)) {
         console.error('Failed to load initial state:', error);
         if (error instanceof ValidationError) {
           console.error('Validation error details:', error.getDetails());
         }
+        
+        // Если сессия не найдена (404), очищаем currentSessionId
+        if (error instanceof APIError && error.status === 404) {
+          console.log('Session not found (404), clearing currentSessionId');
+          await this.api.clearCurrentSessionId();
+        }
       }
       
+      console.log('[ChatViewProvider] Sending empty initialState');
       this.postMessage({
         type: 'initialState',
         payload: {
@@ -256,8 +271,10 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
   }
   
   private async loadSessions(): Promise<void> {
+    console.log('[ChatViewProvider] loadSessions called');
     try {
       const response = await this.api.listSessions();
+      console.log('[ChatViewProvider] Sessions loaded:', response.sessions.length);
       
       // Отправляем сессии без обогащения метаданными
       // WebView сам запросит детали при необходимости
@@ -267,12 +284,14 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
           sessions: response.sessions
         }
       });
+      console.log('[ChatViewProvider] sessionsLoaded message sent');
     } catch (error: any) {
-      console.error('Error loading sessions:', error);
+      console.error('[ChatViewProvider] Error loading sessions:', error);
       
       if (this.isAuthError(error)) {
         await this.handleAuthError();
       } else {
+        console.log('[ChatViewProvider] Sending empty sessions list');
         this.postMessage({
           type: 'sessionsLoaded',
           payload: { sessions: [] }
@@ -282,13 +301,19 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
   }
   
   private async switchSession(sessionId: string): Promise<void> {
+    console.log('[ChatViewProvider] switchSession called with:', sessionId);
     try {
       // Сначала проверяем, существует ли сессия, загрузив её историю
+      console.log('[ChatViewProvider] Loading message history...');
       const messages = await this.api.getMessageHistory(sessionId);
+      console.log('[ChatViewProvider] Message history loaded:', messages.messages.length);
       
       // Если история загружена успешно, переключаемся
+      console.log('[ChatViewProvider] Switching session in API...');
       await this.api.switchSession(sessionId);
+      console.log('[ChatViewProvider] Session switched in API');
       
+      console.log('[ChatViewProvider] Sending sessionSwitched message to webview');
       this.postMessage({
         type: 'sessionSwitched',
         payload: {
@@ -296,8 +321,9 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
           messages: messages.messages
         }
       });
+      console.log('[ChatViewProvider] sessionSwitched message sent');
     } catch (error: any) {
-      console.error('Error switching session:', error);
+      console.error('[ChatViewProvider] Error switching session:', error);
       
       if (this.isAuthError(error)) {
         await this.handleAuthError();

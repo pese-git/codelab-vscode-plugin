@@ -9,13 +9,17 @@ export function useMessages() {
     setMessages(prev => [...prev, message]);
   }, []);
   
+  const setMessagesDirectly = useCallback((newMessages: Message[]) => {
+    setMessages(newMessages);
+  }, []);
+  
   const updateProgress = useCallback((
-    messageId: string, 
+    messageId: string,
     progress: number,
     text?: string
   ) => {
-    setMessages(prev => prev.map(msg => 
-      msg.id === messageId 
+    setMessages(prev => prev.map(msg =>
+      msg.id === messageId
         ? { ...msg, progress, content: text || msg.content }
         : msg
     ));
@@ -28,6 +32,7 @@ export function useMessages() {
   return {
     messages,
     addMessage,
+    setMessagesDirectly,
     updateProgress,
     clearMessages,
     isLoading,

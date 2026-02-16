@@ -216,6 +216,8 @@ export const App: React.FC = () => {
     console.log('[App] Rendering sessions view');
   } else {
     console.log('[App] Rendering chat view with messages:', messages);
+    console.log('[App] About to render ChatHeader, MessageList, ChatInput');
+    console.log('[App] Messages to pass to MessageList:', messages);
   }
   
   return (

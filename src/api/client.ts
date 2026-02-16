@@ -43,17 +43,20 @@ export class APIClient {
     }
     
     const url = `${this.config.baseUrl}${endpoint}`;
-    const headers: Record<string, string> = {
-      'Content-Type': 'application/json; charset=utf-8',
-      ...this.authManager.getAuthHeaders(token),
-      ...(options.headers as Record<string, string> || {})
-    };
     
-    // Исправление для UTF-8 в VSCode Extension Host
-    // Используем Blob для правильной кодировки
-    let body = options.body;
-    if (typeof body === 'string') {
-      body = new Blob([body], { type: 'application/json; charset=utf-8' });
+    // Используем Headers объект для корректной обработки non-Latin1 символов
+    const headers = new Headers();
+    headers.set('Content-Type', 'application/json; charset=utf-8');
+    
+    const authHeaders = this.authManager.getAuthHeaders(token);
+    Object.entries(authHeaders).forEach(([key, value]) => {
+      headers.set(key, value);
+    });
+    
+    if (options.headers) {
+      Object.entries(options.headers as Record<string, string>).forEach(([key, value]) => {
+        headers.set(key, value);
+      });
     }
     
     const controller = new AbortController();
@@ -62,7 +65,6 @@ export class APIClient {
     try {
       const response = await fetch(url, {
         ...options,
-        body,
         headers,
         signal: controller.signal
       });

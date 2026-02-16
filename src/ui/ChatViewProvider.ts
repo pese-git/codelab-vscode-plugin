@@ -259,28 +259,12 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
     try {
       const response = await this.api.listSessions();
       
-      // Обогащаем сессии информацией о последнем сообщении
-      const sessionsWithDetails = await Promise.all(
-        response.sessions.map(async (session: any) => {
-          try {
-            const history = await this.api.getMessageHistory(session.id);
-            const lastMessage = history.messages[history.messages.length - 1];
-            
-            return {
-              ...session,
-              last_message: lastMessage?.content?.substring(0, 100),
-              last_message_time: lastMessage?.timestamp
-            };
-          } catch {
-            return session;
-          }
-        })
-      );
-      
+      // Отправляем сессии без обогащения метаданными
+      // WebView сам запросит детали при необходимости
       this.postMessage({
         type: 'sessionsLoaded',
         payload: {
-          sessions: sessionsWithDetails
+          sessions: response.sessions
         }
       });
     } catch (error: any) {

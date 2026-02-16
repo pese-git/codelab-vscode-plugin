@@ -17,8 +17,7 @@ export class AuthManager {
   
   getAuthHeaders(token: string): Record<string, string> {
     return {
-      'Authorization': `Bearer ${token}`,
-      'Content-Type': 'application/json'
+      'Authorization': `Bearer ${token}`
     };
   }
 }

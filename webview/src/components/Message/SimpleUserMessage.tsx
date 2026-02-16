@@ -6,6 +6,18 @@ interface SimpleUserMessageProps {
   message: Message;
 }
 
+const formatTime = (timestamp: string): string => {
+  try {
+    const date = new Date(timestamp);
+    if (isNaN(date.getTime())) {
+      return 'Invalid Date';
+    }
+    return date.toLocaleTimeString();
+  } catch (error) {
+    return 'Invalid Date';
+  }
+};
+
 export const SimpleUserMessage: React.FC<SimpleUserMessageProps> = ({ message }) => {
   return (
     <div className={styles.messageWrapper}>
@@ -13,7 +25,7 @@ export const SimpleUserMessage: React.FC<SimpleUserMessageProps> = ({ message })
         <div className={styles.messageHeader}>
           <span className={styles.messageRole}>You</span>
           <span className={styles.messageTime}>
-            {new Date(message.timestamp).toLocaleTimeString()}
+            {formatTime(message.timestamp)}
           </span>
         </div>
         <div className={styles.messageContent}>

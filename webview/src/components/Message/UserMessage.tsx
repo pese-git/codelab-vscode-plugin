@@ -29,9 +29,16 @@ export const UserMessage: React.FC<UserMessageProps> = React.memo(({ message }) 
 UserMessage.displayName = 'UserMessage';
 
 function formatTime(timestamp: string): string {
-  const date = new Date(timestamp);
-  return date.toLocaleTimeString('en-US', { 
-    hour: '2-digit', 
-    minute: '2-digit' 
-  });
+  try {
+    const date = new Date(timestamp);
+    if (isNaN(date.getTime())) {
+      return 'Invalid Date';
+    }
+    return date.toLocaleTimeString('en-US', {
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  } catch (error) {
+    return 'Invalid Date';
+  }
 }

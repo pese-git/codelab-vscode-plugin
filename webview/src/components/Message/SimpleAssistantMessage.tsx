@@ -9,6 +9,18 @@ interface SimpleAssistantMessageProps {
   message: Message;
 }
 
+const formatTime = (timestamp: string): string => {
+  try {
+    const date = new Date(timestamp);
+    if (isNaN(date.getTime())) {
+      return 'Invalid Date';
+    }
+    return date.toLocaleTimeString();
+  } catch (error) {
+    return 'Invalid Date';
+  }
+};
+
 export const SimpleAssistantMessage: React.FC<SimpleAssistantMessageProps> = ({ message }) => {
   const handleCopyCode = (code: string) => {
     navigator.clipboard.writeText(code);
@@ -20,7 +32,7 @@ export const SimpleAssistantMessage: React.FC<SimpleAssistantMessageProps> = ({ 
         <div className={styles.messageHeader}>
           <span className={styles.messageRole}>Assistant</span>
           <span className={styles.messageTime}>
-            {new Date(message.timestamp).toLocaleTimeString()}
+            {formatTime(message.timestamp)}
           </span>
         </div>
         <div className={styles.messageContent}>

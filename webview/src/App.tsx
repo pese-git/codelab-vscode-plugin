@@ -108,10 +108,10 @@ export const App: React.FC = () => {
           console.log('[App] Task completed:', message.payload);
           state.setIsLoading(false);
           state.addMessage({
-            id: message.payload.task_id,
+            id: message.payload.task_id || `task-${Date.now()}`,
             role: 'assistant',
-            content: message.payload.result,
-            timestamp: message.payload.timestamp,
+            content: message.payload.result || message.payload.error || 'Task completed',
+            timestamp: message.payload.timestamp || new Date().toISOString(),
             agentId: message.payload.agent_id
           });
           break;

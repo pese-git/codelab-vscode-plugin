@@ -32,6 +32,9 @@ export function SessionList({
   const formatDate = (dateString: string) => {
     try {
       const date = new Date(dateString);
+      if (isNaN(date.getTime())) {
+        return 'Invalid Date';
+      }
       const now = new Date();
       const diffMs = now.getTime() - date.getTime();
       const diffMins = Math.floor(diffMs / 60000);
@@ -45,7 +48,7 @@ export function SessionList({
       
       return date.toLocaleDateString();
     } catch {
-      return dateString;
+      return 'Invalid Date';
     }
   };
 

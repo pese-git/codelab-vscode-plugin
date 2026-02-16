@@ -65,9 +65,16 @@ export const AssistantMessage: React.FC<AssistantMessageProps> = React.memo(({ m
 AssistantMessage.displayName = 'AssistantMessage';
 
 function formatTime(timestamp: string): string {
-  const date = new Date(timestamp);
-  return date.toLocaleTimeString('en-US', {
-    hour: '2-digit',
-    minute: '2-digit'
-  });
+  try {
+    const date = new Date(timestamp);
+    if (isNaN(date.getTime())) {
+      return 'Invalid Date';
+    }
+    return date.toLocaleTimeString('en-US', {
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  } catch (error) {
+    return 'Invalid Date';
+  }
 }

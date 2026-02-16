@@ -121,31 +121,31 @@ export const App: React.FC = () => {
           console.log('[App] Task completed - task_id:', message.payload.task_id);
           state.setIsLoading(false);
           
-          const assistantMessage = {
-            id: message.payload.task_id || `task-${Date.now()}`,
-            role: 'assistant' as const,
-            content: message.payload.result || message.payload.error || 'Task completed',
-            timestamp: message.payload.timestamp || new Date().toISOString(),
-            agentId: message.payload.agent_id
-          };
-          console.log('[App] Adding assistant message:', assistantMessage);
-          state.addMessage(assistantMessage);
+          // Сообщение ассистента придет через messageCreated событие
+          // Progress сообщение останется в истории
+          console.log('[App] Task completed, waiting for messageCreated event');
           break;
           
         case 'messageCreated':
           console.log('[App] Message created:', message.payload);
-          state.setIsLoading(false);
           
-          // Добавляем сообщение от ассистента
-          const newMessage = {
-            id: message.payload.id || `msg-${Date.now()}`,
-            role: message.payload.role as 'user' | 'assistant' | 'system',
-            content: message.payload.content,
-            timestamp: message.payload.timestamp || new Date().toISOString(),
-            agentId: message.payload.agent_id
-          };
-          console.log('[App] Adding message from messageCreated:', newMessage);
-          state.addMessage(newMessage);
+          // Добавляем только сообщения от ассистента, так как сообщения пользователя
+          // уже добавлены локально для мгновенного отклика UI
+          if (message.payload.role === 'assistant') {
+            state.setIsLoading(false);
+            
+            const newMessage = {
+              id: message.payload.message_id || message.payload.id || `msg-${Date.now()}`,
+              role: 'assistant' as const,
+              content: message.payload.content,
+              timestamp: message.payload.timestamp || new Date().toISOString(),
+              agentId: message.payload.agent_id
+            };
+            console.log('[App] Adding assistant message from messageCreated:', newMessage);
+            state.addMessage(newMessage);
+          } else {
+            console.log('[App] Skipping user message from messageCreated (already added locally)');
+          }
           break;
           
         case 'codeCopied':
@@ -174,11 +174,11 @@ export const App: React.FC = () => {
     console.log('[App] Adding message event listener');
     window.addEventListener('message', handleMessageRef.current!);
     
-    // НЕ удаляем обработчик при cleanup, так как он должен жить весь lifecycle приложения
-    // return () => {
-    //   console.log('[App] Cleanup: removing message event listener');
-    //   window.removeEventListener('message', handleMessageRef.current!);
-    // };
+    // Cleanup: удаляем обработчик при размонтировании
+    return () => {
+      console.log('[App] Cleanup: removing message event listener');
+      window.removeEventListener('message', handleMessageRef.current!);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   

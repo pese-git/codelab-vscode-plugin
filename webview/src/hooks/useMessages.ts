@@ -6,7 +6,16 @@ export function useMessages() {
   const [isLoading, setIsLoading] = useState(false);
   
   const addMessage = useCallback((message: Message) => {
-    setMessages(prev => [...prev, message]);
+    setMessages(prev => {
+      // Проверяем, нет ли уже сообщения с таким ID
+      const exists = prev.some(msg => msg.id === message.id);
+      if (exists) {
+        console.log('[useMessages] Message with id', message.id, 'already exists, skipping');
+        return prev;
+      }
+      console.log('[useMessages] Adding message with id', message.id);
+      return [...prev, message];
+    });
   }, []);
   
   const setMessagesDirectly = useCallback((newMessages: Message[]) => {

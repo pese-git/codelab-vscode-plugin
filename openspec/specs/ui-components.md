@@ -49,6 +49,7 @@
 
 ## Архитектура UI
 
+### Режим списка сессий (по умолчанию)
 ```
 ┌─────────────────────────────────────┐
 │     VS Code Activity Bar            │
@@ -63,7 +64,41 @@
 │                                     │
 │  ┌───────────────────────────────┐ │
 │  │  <ChatHeader />               │ │
-│  │  [New Chat] [Settings]        │ │
+│  │  CodeLab        [+] [⚙️]      │ │
+│  └───────────────────────────────┘ │
+│                                     │
+│  ┌───────────────────────────────┐ │
+│  │  <SessionList />              │ │
+│  │  🔍 Search...          [+]    │ │
+│  │  ─────────────────────────    │ │
+│  │  💬 Недавние задачи           │ │
+│  │                               │ │
+│  │  ┌─────────────────────────┐ │ │
+│  │  │ продолжи реализацию     │ │ │
+│  │  │ 💬 3 messages  1m ago   │ │ │
+│  │  └─────────────────────────┘ │ │
+│  │                               │ │
+│  │  ┌─────────────────────────┐ │ │
+│  │  │ сделай коммит           │ │ │
+│  │  │ 💬 2 messages  10h ago  │ │ │
+│  │  └─────────────────────────┘ │ │
+│  └───────────────────────────────┘ │
+│                                     │
+│  ┌───────────────────────────────┐ │
+│  │  <ChatInput />                │ │
+│  │  [📎] [Начните новый чат...] │ │
+│  └───────────────────────────────┘ │
+└─────────────────────────────────────┘
+```
+
+### Режим чата (при выборе сессии)
+```
+┌─────────────────────────────────────┐
+│     Sidebar WebView (React App)     │
+│                                     │
+│  ┌───────────────────────────────┐ │
+│  │  <ChatHeader />               │ │
+│  │  [←] CodeLab      [+] [⚙️]    │ │
 │  └───────────────────────────────┘ │
 │                                     │
 │  ┌───────────────────────────────┐ │
@@ -267,25 +302,34 @@ function getNonce(): string {
 
 ### Main App Component
 
+**Новая архитектура с двумя режимами отображения:**
+
 ```typescript
 // webview/src/App.tsx
 import React, { useEffect, useState } from 'react';
 import { ChatHeader } from './components/ChatHeader';
 import { MessageList } from './components/MessageList';
 import { ChatInput } from './components/ChatInput';
+import { SessionList } from './components/SessionList';
 import { useMessages } from './hooks/useMessages';
 import { useVSCode } from './hooks/useVSCode';
-import type { Message } from './types';
+import type { Message, ChatSession } from './types';
 import './styles/global.css';
 
 export const App: React.FC = () => {
   const vscode = useVSCode();
-  const { messages, addMessage, updateProgress, isLoading, setIsLoading } = useMessages();
+  const { messages, addMessage, updateProgress, isLoading, setIsLoading, clearMessages } = useMessages();
   const [sessionId, setSessionId] = useState<string | null>(null);
+  const [sessions, setSessions] = useState<ChatSession[]>([]);
+  // Два режима: список сессий (по умолчанию) и чат
+  const [view, setView] = useState<'sessions' | 'chat'>('sessions');
   
   useEffect(() => {
     // Notify extension that React app is ready
     vscode.postMessage({ type: 'ready' });
+    
+    // Request sessions list
+    vscode.postMessage({ type: 'loadSessions' });
     
     // Listen for messages from extension
     const handleMessage = (event: MessageEvent) => {
@@ -294,7 +338,23 @@ export const App: React.FC = () => {
       switch (message.type) {
         case 'initialState':
           setSessionId(message.payload.sessionId);
+          clearMessages();
           message.payload.messages.forEach((msg: Message) => addMessage(msg));
+          // Если есть сообщения, переключаемся на чат
+          if (message.payload.messages.length > 0) {
+            setView('chat');
+          }
+          break;
+          
+        case 'sessionsLoaded':
+          setSessions(message.payload.sessions || []);
+          break;
+          
+        case 'sessionSwitched':
+          setSessionId(message.payload.sessionId);
+          clearMessages();
+          message.payload.messages.forEach((msg: Message) => addMessage(msg));
+          setView('chat');
           break;
           
         case 'taskStarted':
@@ -336,9 +396,14 @@ export const App: React.FC = () => {
     
     window.addEventListener('message', handleMessage);
     return () => window.removeEventListener('message', handleMessage);
-  }, [vscode, addMessage, updateProgress, setIsLoading]);
+  }, [vscode, addMessage, updateProgress, setIsLoading, clearMessages]);
   
   const handleSendMessage = (content: string) => {
+    // Если нет активной сессии, создаём новую
+    if (!sessionId) {
+      vscode.postMessage({ type: 'newChat' });
+    }
+    
     // Add user message to UI immediately
     addMessage({
       id: `user-${Date.now()}`,
@@ -354,21 +419,78 @@ export const App: React.FC = () => {
     });
     
     setIsLoading(true);
+    // Переключаемся на вид чата при отправке сообщения
+    setView('chat');
   };
   
   const handleNewChat = () => {
     vscode.postMessage({ type: 'newChat' });
+    clearMessages();
     setSessionId(null);
+    setView('sessions');
+  };
+  
+  const handleSessionSelect = (selectedSessionId: string) => {
+    vscode.postMessage({
+      type: 'switchSession',
+      sessionId: selectedSessionId
+    });
+  };
+  
+  const handleDeleteSession = (sessionIdToDelete: string) => {
+    vscode.postMessage({
+      type: 'deleteSession',
+      sessionId: sessionIdToDelete
+    });
+    setSessions(prev => prev.filter(s => s.id !== sessionIdToDelete));
+    if (sessionIdToDelete === sessionId) {
+      clearMessages();
+      setSessionId(null);
+      setView('sessions');
+    }
+  };
+  
+  const handleBackToSessions = () => {
+    setView('sessions');
   };
   
   return (
     <div className="app">
-      <ChatHeader onNewChat={handleNewChat} />
-      <MessageList messages={messages} />
-      <ChatInput 
-        onSend={handleSendMessage} 
-        disabled={isLoading}
-      />
+      {view === 'sessions' ? (
+        // Экран списка сессий с инпутом внизу (как в Roo Code)
+        <>
+          <ChatHeader
+            onNewChat={handleNewChat}
+            showBackButton={false}
+          />
+          <SessionList
+            sessions={sessions}
+            currentSessionId={sessionId}
+            onSessionSelect={handleSessionSelect}
+            onNewSession={handleNewChat}
+            onDeleteSession={handleDeleteSession}
+          />
+          <ChatInput
+            onSend={handleSendMessage}
+            disabled={isLoading}
+            placeholder="Начните новый чат или выберите сессию выше..."
+          />
+        </>
+      ) : (
+        // Экран чата
+        <>
+          <ChatHeader
+            onNewChat={handleNewChat}
+            onBack={handleBackToSessions}
+            showBackButton={true}
+          />
+          <MessageList messages={messages} />
+          <ChatInput
+            onSend={handleSendMessage}
+            disabled={isLoading}
+          />
+        </>
+      )}
     </div>
   );
 };
@@ -1756,3 +1878,46 @@ describe('ChatInput', () => {
 
 ### 4. Input Validation
 Валидация всех пользовательских вводов перед отправкой в extension.
+
+---
+
+## Обновление UI (февраль 2026)
+
+### Переработка навигации по аналогии с Roo Code
+
+UI был переработан для улучшения пользовательского опыта. Теперь при запуске плагина пользователь сразу видит список сессий с возможностью начать новый чат.
+
+#### Ключевые изменения:
+
+1. **Два режима отображения**
+   - **Режим списка сессий** (`view: 'sessions'`) - отображается по умолчанию при старте
+   - **Режим чата** (`view: 'chat'`) - отображается при выборе сессии или отправке сообщения
+
+2. **Обновленные компоненты**
+   - **App.tsx** - добавлено состояние `view` для переключения между режимами
+   - **ChatHeader.tsx** - добавлена кнопка "Назад" (`onBack`, `showBackButton`)
+   - **ChatInput.tsx** - добавлен проп `placeholder` для кастомизации текста
+   - **SessionList.tsx** - улучшено пустое состояние с информативными подсказками
+
+3. **Автоматическое переключение режимов**
+   - При старте → режим списка сессий
+   - При выборе сессии → режим чата
+   - При отправке сообщения из списка → создание новой сессии + режим чата
+   - Кнопка "Назад" → режим списка сессий
+   - Кнопка "Новый чат" → режим списка сессий
+
+4. **Улучшенный дизайн**
+   - Современные карточки сессий с анимациями
+   - Эффекты при наведении (transform, box-shadow)
+   - Эмодзи-иконки для визуализации
+   - Информативное пустое состояние
+
+#### Преимущества новой навигации:
+
+- ✅ Интуитивный интерфейс - пользователь сразу видит доступные сессии
+- ✅ Быстрый доступ - можно начать новый чат прямо с главного экрана
+- ✅ Понятная навигация - простое переключение между режимами
+- ✅ Современный дизайн с плавными анимациями
+- ✅ Полная обратная совместимость с существующим API
+
+Подробная документация изменений: [`doc/UI_REDESIGN.md`](../../doc/UI_REDESIGN.md)

@@ -347,6 +347,11 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
       
       if (this.isAuthError(error)) {
         await this.handleAuthError();
+      } else if (error instanceof APIError && error.status === 404) {
+        // Сессия уже удалена или не существует - просто обновляем список
+        console.log('Session not found (404), refreshing session list');
+        await this.loadSessions();
+        vscode.window.showInformationMessage('Session removed from list');
       } else {
         vscode.window.showErrorMessage(`Failed to delete session: ${error.message || String(error)}`);
       }

@@ -151,7 +151,7 @@ export class APIClient {
   
   async deleteSession(sessionId: string): Promise<void> {
     await this.request(
-      `/my/chat/sessions/${sessionId}/`,
+      `/my/chat/sessions/${sessionId}`,
       { method: 'DELETE' }
     );
   }

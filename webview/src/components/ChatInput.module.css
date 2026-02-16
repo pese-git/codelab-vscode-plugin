@@ -1,11 +1,16 @@
+.inputContainer {
+  display: flex;
+  flex-direction: column;
+  border-top: 1px solid var(--vscode-panel-border);
+  background-color: var(--vscode-sideBar-background);
+  flex-shrink: 0;
+}
+
 .inputArea {
   display: flex;
   gap: var(--spacing-sm);
   padding: var(--spacing-md);
-  border-top: 1px solid var(--vscode-panel-border);
-  background-color: var(--vscode-sideBar-background);
   align-items: flex-end;
-  flex-shrink: 0;
   min-height: 60px;
 }
 
@@ -14,4 +19,10 @@
   min-height: 32px;
   max-height: 120px;
   resize: none;
+}
+
+.agentSelectorContainer {
+  padding: 8px var(--spacing-md);
+  border-top: 1px solid var(--vscode-panel-border);
+  background-color: var(--vscode-sideBar-background);
 }

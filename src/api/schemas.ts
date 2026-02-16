@@ -101,9 +101,9 @@ export type CreateAgentRequest = z.infer<typeof CreateAgentRequestSchema>;
 export const AgentResponseSchema = z.object({
   id: z.string().uuid(),
   name: z.string(),
-  type: z.string(),
-  config: z.record(z.any()),
-  created_at: z.string().datetime()
+  status: z.string().optional(),
+  created_at: z.string(),
+  config: z.record(z.any())
 });
 
 export type AgentResponse = z.infer<typeof AgentResponseSchema>;

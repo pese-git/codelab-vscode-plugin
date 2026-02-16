@@ -5,7 +5,7 @@ import { ChatInput } from './components/ChatInput';
 import { SessionList } from './components/SessionList';
 import { useMessages } from './hooks/useMessages';
 import { useVSCode } from './hooks/useVSCode';
-import type { Message, ChatSession } from './types';
+import type { Message, ChatSession, Agent } from './types';
 import './styles/global.css';
 
 export const App: React.FC = () => {
@@ -19,6 +19,9 @@ export const App: React.FC = () => {
   
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [sessions, setSessions] = useState<ChatSession[]>([]);
+  const [agents, setAgents] = useState<Agent[]>([]);
+  const [selectedAgent, setSelectedAgent] = useState<Agent | null>(null);
+  
   // Показываем список сессий, когда нет активной сессии или нет сообщений
   const [view, setView] = useState<'sessions' | 'chat'>(() => {
     // Пытаемся восстановить view из sessionStorage
@@ -33,10 +36,10 @@ export const App: React.FC = () => {
   }, [view]);
   
   // Используем ref для хранения актуальных значений без пересоздания обработчика
-  const stateRef = useRef({ addMessage, setMessagesDirectly, clearMessages, updateProgress, setIsLoading, setSessionId, setSessions, setView, vscode });
+  const stateRef = useRef({ addMessage, setMessagesDirectly, clearMessages, updateProgress, setIsLoading, setSessionId, setSessions, setAgents, setView, vscode });
   
   // Обновляем ref при каждом рендере (не вызывает ререндер)
-  stateRef.current = { addMessage, setMessagesDirectly, clearMessages, updateProgress, setIsLoading, setSessionId, setSessions, setView, vscode };
+  stateRef.current = { addMessage, setMessagesDirectly, clearMessages, updateProgress, setIsLoading, setSessionId, setSessions, setAgents, setView, vscode };
   
   // Создаем обработчик один раз при первом рендере
   const handleMessageRef = useRef<((event: MessageEvent) => void) | null>(null);
@@ -66,6 +69,11 @@ export const App: React.FC = () => {
         case 'sessionsLoaded':
           console.log('[App] Sessions loaded:', message.payload);
           state.setSessions(message.payload.sessions || []);
+          break;
+          
+        case 'agentsLoaded':
+          console.log('[App] Agents loaded:', message.payload);
+          state.setAgents(message.payload.agents || []);
           break;
           
         case 'sessionSwitched':
@@ -138,6 +146,9 @@ export const App: React.FC = () => {
     // Request sessions list
     vscode.postMessage({ type: 'loadSessions' });
     
+    // Request agents list
+    vscode.postMessage({ type: 'loadAgents' });
+    
     console.log('[App] Adding message event listener');
     window.addEventListener('message', handleMessageRef.current!);
     
@@ -149,8 +160,8 @@ export const App: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   
-  const handleSendMessage = (content: string) => {
-    console.log('[App] Sending message:', content);
+  const handleSendMessage = (content: string, targetAgent?: string) => {
+    console.log('[App] Sending message:', content, 'targetAgent:', targetAgent);
     
     // Если нет активной сессии, создаём новую
     if (!sessionId) {
@@ -168,7 +179,8 @@ export const App: React.FC = () => {
     // Send to extension
     vscode.postMessage({
       type: 'sendMessage',
-      content
+      content,
+      targetAgent
     });
     
     setIsLoading(true);
@@ -242,6 +254,9 @@ export const App: React.FC = () => {
             onSend={handleSendMessage}
             disabled={isLoading}
             placeholder="Начните новый чат или выберите сессию выше..."
+            agents={agents}
+            selectedAgent={selectedAgent}
+            onAgentChange={setSelectedAgent}
           />
         </>
       ) : (
@@ -256,6 +271,9 @@ export const App: React.FC = () => {
           <ChatInput
             onSend={handleSendMessage}
             disabled={isLoading}
+            agents={agents}
+            selectedAgent={selectedAgent}
+            onAgentChange={setSelectedAgent}
           />
         </>
       )}

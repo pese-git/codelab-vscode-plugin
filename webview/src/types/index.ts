@@ -17,6 +17,16 @@ export interface ChatSession {
   last_message_time?: string;
 }
 
+export interface Agent {
+  id: string;
+  name: string;
+  status?: string;
+  icon?: string;
+  description?: string;
+  config?: Record<string, any>;
+  created_at?: string;
+}
+
 export interface VSCodeAPI {
   postMessage(message: any): void;
   getState(): any;
@@ -24,15 +34,16 @@ export interface VSCodeAPI {
 }
 
 export interface MessageFromExtension {
-  type: 'initialState' | 'taskStarted' | 'taskProgress' | 'taskCompleted' | 'codeCopied' | 'sessionsLoaded' | 'sessionSwitched';
+  type: 'initialState' | 'taskStarted' | 'taskProgress' | 'taskCompleted' | 'codeCopied' | 'sessionsLoaded' | 'sessionSwitched' | 'agentsLoaded';
   payload?: any;
 }
 
 export interface MessageToExtension {
-  type: 'ready' | 'sendMessage' | 'applyChanges' | 'copyCode' | 'newChat' | 'retryMessage' | 'loadSessions' | 'switchSession' | 'deleteSession';
+  type: 'ready' | 'sendMessage' | 'applyChanges' | 'copyCode' | 'newChat' | 'retryMessage' | 'loadSessions' | 'switchSession' | 'deleteSession' | 'loadAgents';
   content?: string;
   code?: string;
   messageId?: string;
   diff?: string;
   sessionId?: string;
+  targetAgent?: string;
 }

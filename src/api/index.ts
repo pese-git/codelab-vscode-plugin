@@ -19,7 +19,7 @@ export class CodeLabAPI {
     this.authManager = new AuthManager(context);
   }
   
-  async sendMessage(content: string): Promise<void> {
+  async sendMessage(content: string, targetAgent?: string): Promise<void> {
     // 1. Создать сессию если нужно
     let sessionId = this.context.globalState.get<string>('currentSessionId');
     if (!sessionId) {
@@ -39,10 +39,11 @@ export class CodeLabAPI {
     // 4. Отправить сообщение
     const request: MessageRequest = {
       content,
+      target_agent: targetAgent,
       context: projectContext
     };
     
-    await withRetry(() => 
+    await withRetry(() =>
       this.client.sendMessage(sessionId!, request)
     );
     
@@ -166,6 +167,10 @@ export class CodeLabAPI {
     
     await this.connectStreaming(session.id);
     return session.id;
+  }
+  
+  async listAgents() {
+    return await withRetry(() => this.client.listAgents());
   }
   
   dispose(): void {

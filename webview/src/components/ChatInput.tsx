@@ -1,14 +1,26 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { VSCodeButton, VSCodeTextArea } from '@vscode/webview-ui-toolkit/react';
+import { AgentSelector } from './AgentSelector';
+import type { Agent } from '../types';
 import styles from './ChatInput.module.css';
 
 interface ChatInputProps {
-  onSend: (content: string) => void;
+  onSend: (content: string, targetAgent?: string) => void;
   disabled?: boolean;
   placeholder?: string;
+  agents?: Agent[];
+  selectedAgent?: Agent | null;
+  onAgentChange?: (agent: Agent | null) => void;
 }
 
-export const ChatInput: React.FC<ChatInputProps> = React.memo(({ onSend, disabled, placeholder = 'Type your message...' }) => {
+export const ChatInput: React.FC<ChatInputProps> = React.memo(({
+  onSend,
+  disabled,
+  placeholder = 'Type your message...',
+  agents = [],
+  selectedAgent = null,
+  onAgentChange
+}) => {
   console.log('[ChatInput] Rendering, disabled:', disabled);
   
   const [value, setValue] = useState('');
@@ -32,8 +44,8 @@ export const ChatInput: React.FC<ChatInputProps> = React.memo(({ onSend, disable
       return;
     }
     
-    console.log('[ChatInput] Sending message:', content);
-    onSend(content);
+    console.log('[ChatInput] Sending message:', content, 'targetAgent:', selectedAgent?.id);
+    onSend(content, selectedAgent?.id);
     setValue('');
   };
   
@@ -52,39 +64,51 @@ export const ChatInput: React.FC<ChatInputProps> = React.memo(({ onSend, disable
   };
   
   return (
-    <div className={styles.inputArea}>
-      <VSCodeButton
-        appearance="icon"
-        title="Attach file"
-        disabled={disabled}
-        aria-label="Attach file"
-        onClick={() => console.log('[ChatInput] Attach button clicked')}
-      >
-        <span className="codicon codicon-paperclip" />
-      </VSCodeButton>
+    <div className={styles.inputContainer}>
+      <div className={styles.inputArea}>
+        <VSCodeButton
+          appearance="icon"
+          title="Attach file"
+          disabled={disabled}
+          aria-label="Attach file"
+          onClick={() => console.log('[ChatInput] Attach button clicked')}
+        >
+          <span className="codicon codicon-paperclip" />
+        </VSCodeButton>
+        
+        <VSCodeTextArea
+          ref={textareaRef}
+          className={styles.textarea}
+          placeholder={placeholder}
+          value={value}
+          onInput={handleInput}
+          onKeyDown={handleKeyDown}
+          disabled={disabled}
+          rows={1}
+          resize="vertical"
+          aria-label="Message input"
+        />
+        
+        <VSCodeButton
+          appearance="icon"
+          onClick={handleSend}
+          disabled={disabled || !value.trim()}
+          title="Send"
+          aria-label="Send message"
+        >
+          <span className="codicon codicon-send" />
+        </VSCodeButton>
+      </div>
       
-      <VSCodeTextArea
-        ref={textareaRef}
-        className={styles.textarea}
-        placeholder={placeholder}
-        value={value}
-        onInput={handleInput}
-        onKeyDown={handleKeyDown}
-        disabled={disabled}
-        rows={1}
-        resize="vertical"
-        aria-label="Message input"
-      />
-      
-      <VSCodeButton
-        appearance="icon"
-        onClick={handleSend}
-        disabled={disabled || !value.trim()}
-        title="Send"
-        aria-label="Send message"
-      >
-        <span className="codicon codicon-send" />
-      </VSCodeButton>
+      {/* Agent Selector под полем ввода */}
+      <div className={styles.agentSelectorContainer}>
+        <AgentSelector
+          agents={agents}
+          selectedAgent={selectedAgent}
+          onSelectAgent={onAgentChange || (() => {})}
+          disabled={disabled}
+        />
+      </div>
     </div>
   );
 });

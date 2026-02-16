@@ -109,7 +109,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
     switch (message.type) {
       case 'sendMessage':
         try {
-          await this.api.sendMessage(message.content);
+          await this.api.sendMessage(message.content, message.targetAgent);
         } catch (error: any) {
           console.error('Error sending message:', error);
           
@@ -172,6 +172,10 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
         
       case 'deleteSession':
         await this.deleteSession(message.sessionId);
+        break;
+        
+      case 'loadAgents':
+        await this.loadAgents();
         break;
         
       case 'ready':
@@ -354,6 +358,34 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
         vscode.window.showInformationMessage('Session removed from list');
       } else {
         vscode.window.showErrorMessage(`Failed to delete session: ${error.message || String(error)}`);
+      }
+    }
+  }
+  
+  private async loadAgents(): Promise<void> {
+    console.log('[ChatViewProvider] loadAgents called');
+    try {
+      const response = await this.api.listAgents();
+      console.log('[ChatViewProvider] Agents loaded:', response.agents.length);
+      
+      this.postMessage({
+        type: 'agentsLoaded',
+        payload: {
+          agents: response.agents
+        }
+      });
+      console.log('[ChatViewProvider] agentsLoaded message sent');
+    } catch (error: any) {
+      console.error('[ChatViewProvider] Error loading agents:', error);
+      
+      if (this.isAuthError(error)) {
+        await this.handleAuthError();
+      } else {
+        console.log('[ChatViewProvider] Sending empty agents list');
+        this.postMessage({
+          type: 'agentsLoaded',
+          payload: { agents: [] }
+        });
       }
     }
   }

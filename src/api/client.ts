@@ -5,22 +5,28 @@ import { APIError, NetworkError, ValidationError } from './errors';
 import type * as vscode from 'vscode';
 import {
   HealthResponseSchema,
+  ReadyResponseSchema,
+  ProjectResponseSchema,
+  ProjectListResponseSchema,
   ChatSessionResponseSchema,
   MessageRequestSchema,
   MessageResponseSchema,
-  MessageHistoryResponseSchema,
+  MessageListResponseSchema,
   SessionListResponseSchema,
   AgentResponseSchema,
   AgentListResponseSchema,
   type HealthResponse,
+  type ReadyResponse,
+  type ProjectResponse,
+  type ProjectListResponse,
   type ChatSessionResponse,
   type MessageRequest,
   type MessageResponse,
-  type MessageHistoryResponse,
+  type MessageListResponse,
   type SessionListResponse,
-  type CreateAgentRequest,
   type AgentResponse,
-  type AgentListResponse
+  type AgentListResponse,
+  type AgentConfig
 } from './schemas';
 
 export class APIClient {
@@ -44,7 +50,6 @@ export class APIClient {
     
     const url = `${this.config.baseUrl}${endpoint}`;
     
-    // Используем Headers объект для корректной обработки non-Latin1 символов
     const headers = new Headers();
     headers.set('Content-Type', 'application/json; charset=utf-8');
     
@@ -85,7 +90,7 @@ export class APIClient {
             errorMessage = await response.text() || errorMessage;
           }
         } catch {
-          // Игнорируем ошибки парсинга
+          // Ignore parsing errors
         }
         
         throw new APIError(response.status, errorCode, errorMessage);
@@ -127,44 +132,105 @@ export class APIClient {
   }
   
   async checkHealth(): Promise<HealthResponse> {
-    // Health endpoint не требует аутентификации
     const response = await fetch(`${this.config.baseUrl}/health`);
     const data = await response.json();
     return HealthResponseSchema.parse(data);
   }
-  
-  async createSession(): Promise<ChatSessionResponse> {
+
+  async checkReady(): Promise<ReadyResponse> {
+    const response = await fetch(`${this.config.baseUrl}/ready`);
+    const data = await response.json();
+    return ReadyResponseSchema.parse(data);
+  }
+
+  async createProject(name: string, workspacePath?: string): Promise<ProjectResponse> {
     return await this.request(
-      '/my/chat/sessions/',
-      { method: 'POST' },
+      '/my/projects/',
+      {
+        method: 'POST',
+        body: JSON.stringify({
+          name,
+          workspace_path: workspacePath
+        })
+      },
+      ProjectResponseSchema
+    );
+  }
+
+  async listProjects(): Promise<ProjectListResponse> {
+    return await this.request(
+      '/my/projects/',
+      { method: 'GET' },
+      ProjectListResponseSchema
+    );
+  }
+
+  async getProject(projectId: string): Promise<ProjectResponse> {
+    return await this.request(
+      `/my/projects/${projectId}/`,
+      { method: 'GET' },
+      ProjectResponseSchema
+    );
+  }
+
+  async updateProject(projectId: string, name?: string, workspacePath?: string): Promise<ProjectResponse> {
+    const updates: Record<string, any> = {};
+    if (name !== undefined) {
+      updates.name = name;
+    }
+    if (workspacePath !== undefined) {
+      updates.workspace_path = workspacePath;
+    }
+
+    return await this.request(
+      `/my/projects/${projectId}/`,
+      {
+        method: 'PUT',
+        body: JSON.stringify(updates)
+      },
+      ProjectResponseSchema
+    );
+  }
+
+  async deleteProject(projectId: string): Promise<void> {
+    await this.request(
+      `/my/projects/${projectId}/`,
+      { method: 'DELETE' }
+    );
+  }
+
+  async createSession(projectId: string): Promise<ChatSessionResponse> {
+    return await this.request(
+      `/my/projects/${projectId}/chat/sessions/`,
+      { method: 'POST', body: JSON.stringify({}) },
       ChatSessionResponseSchema
     );
   }
-  
-  async listSessions(): Promise<SessionListResponse> {
+
+  async listSessions(projectId: string): Promise<SessionListResponse> {
     return await this.request(
-      '/my/chat/sessions/',
+      `/my/projects/${projectId}/chat/sessions/`,
       { method: 'GET' },
       SessionListResponseSchema
     );
   }
-  
-  async deleteSession(sessionId: string): Promise<void> {
+
+  async deleteSession(projectId: string, sessionId: string): Promise<void> {
     await this.request(
-      `/my/chat/sessions/${sessionId}`,
+      `/my/projects/${projectId}/chat/sessions/${sessionId}`,
       { method: 'DELETE' }
     );
   }
-  
+
   async sendMessage(
+    projectId: string,
     sessionId: string,
     request: MessageRequest
   ): Promise<MessageResponse> {
-    // Validate request
     const validatedRequest = MessageRequestSchema.parse(request);
     
     return await this.request(
-      `/my/chat/${sessionId}/message/`,
+      `/my/projects/${projectId}/chat/${sessionId}/message/`,
       {
         method: 'POST',
         body: JSON.stringify(validatedRequest)
@@ -172,22 +238,21 @@ export class APIClient {
       MessageResponseSchema
     );
   }
-  
+
   async getMessageHistory(
-    sessionId: string,
-    limit: number = 50,
-    offset: number = 0
-  ): Promise<MessageHistoryResponse> {
+    projectId: string,
+    sessionId: string
+  ): Promise<MessageListResponse> {
     return await this.request(
-      `/my/chat/sessions/${sessionId}/messages/?limit=${limit}&offset=${offset}`,
+      `/my/projects/${projectId}/chat/sessions/${sessionId}/messages/`,
       { method: 'GET' },
-      MessageHistoryResponseSchema
+      MessageListResponseSchema
     );
   }
-  
-  async createAgent(config: CreateAgentRequest): Promise<AgentResponse> {
+
+  async createAgent(projectId: string, config: AgentConfig): Promise<AgentResponse> {
     return await this.request(
-      '/my/agents/',
+      `/my/projects/${projectId}/agents/`,
       {
         method: 'POST',
         body: JSON.stringify(config)
@@ -195,37 +260,37 @@ export class APIClient {
       AgentResponseSchema
     );
   }
-  
-  async listAgents(): Promise<AgentListResponse> {
+
+  async listAgents(projectId: string): Promise<AgentListResponse> {
     return await this.request(
-      '/my/agents/',
+      `/my/projects/${projectId}/agents/`,
       { method: 'GET' },
       AgentListResponseSchema
     );
   }
-  
-  async getAgent(agentId: string): Promise<AgentResponse> {
+
+  async getAgent(projectId: string, agentId: string): Promise<AgentResponse> {
     return await this.request(
-      `/my/agents/${agentId}/`,
+      `/my/projects/${projectId}/agents/${agentId}`,
       { method: 'GET' },
       AgentResponseSchema
     );
   }
-  
-  async updateAgent(agentId: string, config: CreateAgentRequest): Promise<AgentResponse> {
+
+  async updateAgent(projectId: string, agentId: string, config: AgentConfig): Promise<AgentResponse> {
     return await this.request(
-      `/my/agents/${agentId}/`,
+      `/my/projects/${projectId}/agents/${agentId}`,
       {
         method: 'PUT',
-        body: JSON.stringify(config)
+        body: JSON.stringify({ config })
       },
       AgentResponseSchema
     );
   }
-  
-  async deleteAgent(agentId: string): Promise<void> {
+
+  async deleteAgent(projectId: string, agentId: string): Promise<void> {
     await this.request(
-      `/my/agents/${agentId}/`,
+      `/my/projects/${projectId}/agents/${agentId}`,
       { method: 'DELETE' }
     );
   }

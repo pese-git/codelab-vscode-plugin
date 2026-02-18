@@ -127,24 +127,26 @@ export const App: React.FC = () => {
           break;
           
         case 'messageCreated':
-          console.log('[App] Message created:', message.payload);
+          console.log('[App] Message created event received:', message);
+          const messageCreatedPayload = message.payload;
+          console.log('[App] messageCreated payload:', messageCreatedPayload);
           
           // Добавляем только сообщения от ассистента, так как сообщения пользователя
           // уже добавлены локально для мгновенного отклика UI
-          if (message.payload.role === 'assistant') {
+          if (messageCreatedPayload && messageCreatedPayload.role === 'assistant') {
             state.setIsLoading(false);
             
             const newMessage = {
-              id: message.payload.message_id || message.payload.id || `msg-${Date.now()}`,
+              id: messageCreatedPayload.message_id || messageCreatedPayload.id || `msg-${Date.now()}`,
               role: 'assistant' as const,
-              content: message.payload.content,
-              timestamp: message.payload.timestamp || new Date().toISOString(),
-              agentId: message.payload.agent_id
+              content: messageCreatedPayload.content,
+              timestamp: messageCreatedPayload.timestamp || new Date().toISOString(),
+              agentId: messageCreatedPayload.agent_id
             };
             console.log('[App] Adding assistant message from messageCreated:', newMessage);
             state.addMessage(newMessage);
           } else {
-            console.log('[App] Skipping user message from messageCreated (already added locally)');
+            console.log('[App] messageCreated payload is empty or not assistant role:', messageCreatedPayload);
           }
           break;
           

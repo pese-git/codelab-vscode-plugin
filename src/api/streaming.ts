@@ -5,9 +5,10 @@ export class StreamingClient {
   private reconnectAttempts = 0;
   private maxReconnectAttempts = 5;
   private isConnected = false;
-  private eventHandlers: Map<string, (payload: any) => void> = new Map();
+  private eventHandlers: Map<string, (event: StreamEvent) => void> = new Map();
   
   constructor(
+    private projectId: string,
     private sessionId: string,
     private token: string,
     private baseUrl: string
@@ -15,7 +16,7 @@ export class StreamingClient {
   
   async connect(): Promise<void> {
     this.abortController = new AbortController();
-    const url = `${this.baseUrl}/my/chat/${this.sessionId}/events/`;
+    const url = `${this.baseUrl}/my/projects/${this.projectId}/chat/${this.sessionId}/events/`;
     
     try {
       const response = await fetch(url, {
@@ -85,10 +86,13 @@ export class StreamingClient {
     try {
       // NDJSON format - каждая строка это JSON объект
       const eventData = JSON.parse(line);
+      console.log('[StreamingClient] Raw event data from stream:', eventData);
       const event = StreamEventSchema.parse(eventData);
+      console.log('[StreamingClient] Event parsed successfully:', event);
       
-      // Обработка heartbeat событий
-      if (event.event_type === 'heartbeat') {
+      // Ignore heartbeat events
+      const eventType = (event.type || event.event_type) as string;
+      if (eventType === 'heartbeat') {
         this.onHeartbeat?.();
         return;
       }
@@ -101,9 +105,15 @@ export class StreamingClient {
   }
   
   private handleEvent(event: StreamEvent): void {
-    const handler = this.eventHandlers.get(event.event_type);
+    const eventType = (event.type || event.event_type) as string;
+    console.log(`[StreamingClient] Received event type: "${eventType}"`, event);
+    const handler = this.eventHandlers.get(eventType);
     if (handler) {
-      handler(event.payload);
+      console.log(`[StreamingClient] Handler found for "${eventType}", executing...`);
+      handler(event);
+    } else {
+      console.warn(`[StreamingClient] No handler registered for event type: "${eventType}"`);
+      console.log(`[StreamingClient] Available handlers:`, Array.from(this.eventHandlers.keys()));
     }
   }
   
@@ -133,7 +143,7 @@ export class StreamingClient {
     this.isConnected = false;
   }
   
-  on(eventType: string, handler: (payload: any) => void): void {
+  on(eventType: string, handler: (event: StreamEvent) => void): void {
     this.eventHandlers.set(eventType, handler);
   }
   

@@ -185,30 +185,76 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
   }
   
   private setupAPIHandlers(): void {
-    this.api.onTaskStarted = (payload) => {
-      this.postMessage({ type: 'taskStarted', payload });
-    };
-    
-    this.api.onTaskProgress = (payload) => {
-      this.postMessage({ type: 'taskProgress', payload });
-    };
-    
-    this.api.onTaskCompleted = (payload) => {
-      this.postMessage({ type: 'taskCompleted', payload });
+    this.api.onMessageReceived = (payload) => {
+      console.log('[ChatViewProvider] Forwarding messageReceived:', payload);
+      this.postMessage({ type: 'messageReceived', payload });
     };
     
     this.api.onMessageCreated = (payload) => {
-      console.log('[ChatViewProvider] message_created event received:', payload);
+      console.log('[ChatViewProvider] Forwarding messageCreated:', payload);
       this.postMessage({ type: 'messageCreated', payload });
     };
     
-    this.api.onError = (payload) => {
-      this.postMessage({ type: 'error', payload });
+    this.api.onAgentStarted = (payload) => {
+      console.log('[ChatViewProvider] Forwarding agentStarted:', payload);
+      this.postMessage({ type: 'agentStarted', payload });
+    };
+    
+    this.api.onAgentStatusChanged = (payload) => {
+      console.log('[ChatViewProvider] Forwarding agentStatusChanged:', payload);
+      this.postMessage({ type: 'agentStatusChanged', payload });
+    };
+    
+    this.api.onAgentResponse = (payload) => {
+      console.log('[ChatViewProvider] Forwarding agentResponse:', payload);
+      this.postMessage({ type: 'agentResponse', payload });
+    };
+    
+    this.api.onAgentCompleted = (payload) => {
+      console.log('[ChatViewProvider] Forwarding agentCompleted:', payload);
+      this.postMessage({ type: 'agentCompleted', payload });
+    };
+    
+    this.api.onOrchestrationStarted = (payload) => {
+      console.log('[ChatViewProvider] Forwarding orchestrationStarted:', payload);
+      this.postMessage({ type: 'orchestrationStarted', payload });
+    };
+    
+    this.api.onOrchestrationPlanCreated = (payload) => {
+      console.log('[ChatViewProvider] Forwarding orchestrationPlanCreated:', payload);
+      this.postMessage({ type: 'orchestrationPlanCreated', payload });
+    };
+    
+    this.api.onOrchestrationCompleted = (payload) => {
+      console.log('[ChatViewProvider] Forwarding orchestrationCompleted:', payload);
+      this.postMessage({ type: 'orchestrationCompleted', payload });
+    };
+    
+    this.api.onDirectAgentCall = (payload) => {
+      console.log('[ChatViewProvider] Forwarding directAgentCall:', payload);
+      this.postMessage({ type: 'directAgentCall', payload });
+    };
+    
+    this.api.onTaskStarted = (payload) => {
+      console.log('[ChatViewProvider] Forwarding taskStarted:', payload);
+      this.postMessage({ type: 'taskStarted', payload });
+    };
+    
+    this.api.onTaskCompleted = (payload) => {
+      console.log('[ChatViewProvider] Forwarding taskCompleted:', payload);
+      this.postMessage({ type: 'taskCompleted', payload });
     };
   }
   
   public postMessage(message: any): void {
-    this._view?.webview.postMessage(message);
+    console.log('[ChatViewProvider] postMessage called with type:', message.type);
+    console.log('[ChatViewProvider] postMessage payload:', message.payload);
+    if (!this._view) {
+      console.warn('[ChatViewProvider] No webview view available, message not sent');
+      return;
+    }
+    this._view.webview.postMessage(message);
+    console.log('[ChatViewProvider] Message posted to webview');
   }
   
   private async sendInitialState(): Promise<void> {

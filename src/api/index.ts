@@ -3,17 +3,30 @@ import { APIClient } from './client';
 import { StreamingClient } from './streaming';
 import { AuthManager } from './auth';
 import { getAPIConfig } from './config';
-import { withRetry } from './errors';
+import { withRetry, APIError } from './errors';
 import type { MessageRequest } from './schemas';
 
 export class CodeLabAPI {
   private client: APIClient;
   private streamingClient: StreamingClient | null = null;
   private authManager: AuthManager;
+  private lastWorkspacePath: string | undefined;
   
   constructor(private context: vscode.ExtensionContext) {
     this.client = new APIClient(context);
     this.authManager = new AuthManager(context);
+    this.setupWorkspaceListener();
+  }
+  
+  private setupWorkspaceListener(): void {
+    // Check for workspace changes on first use
+    this.context.subscriptions.push(
+      vscode.workspace.onDidChangeWorkspaceFolders(() => {
+        console.log('[CodeLabAPI] Workspace folders changed, clearing cached project ID');
+        this.context.globalState.update('currentProjectId', undefined);
+        this.context.globalState.update('currentSessionId', undefined);
+      })
+    );
   }
   
   async sendMessage(content: string, targetAgent?: string): Promise<void> {
@@ -58,31 +71,60 @@ export class CodeLabAPI {
   }
   
   private async getOrCreateProject(): Promise<string> {
-    let projectId = this.context.globalState.get<string>('currentProjectId');
+    const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+    const currentWorkspaceName = workspaceFolder?.name || 'Default Project';
+    const currentWorkspacePath = workspaceFolder?.uri.fsPath;
     
-    if (!projectId) {
-      // Try to get first project
+    let projectId = this.context.globalState.get<string>('currentProjectId');
+    const savedProjectName = this.context.globalState.get<string>('currentProjectName');
+    
+    console.log('[CodeLabAPI] Workspace check:', { currentWorkspaceName, savedProjectName, projectId });
+    
+    // If workspace changed, clear cached project and create new one
+    if (projectId && savedProjectName !== currentWorkspaceName) {
+      console.log('[CodeLabAPI] Workspace changed from', savedProjectName, 'to', currentWorkspaceName);
+      console.log('[CodeLabAPI] Clearing cached project and creating new one');
+      await this.context.globalState.update('currentProjectId', undefined);
+      await this.context.globalState.update('currentSessionId', undefined);
+      await this.context.globalState.update('currentProjectName', undefined);
+      projectId = undefined;
+    }
+    
+    // Check if cached project still exists
+    if (projectId) {
       try {
-        const projects = await withRetry(() => this.client.listProjects());
-        if (projects.projects.length > 0) {
-          projectId = projects.projects[0].id;
-          await this.context.globalState.update('currentProjectId', projectId);
+        console.log('[CodeLabAPI] Checking if cached project exists:', projectId);
+        // Try to list sessions to verify project exists
+        await withRetry(() => this.client.listSessions(projectId!));
+        console.log('[CodeLabAPI] Cached project still exists');
+        return projectId;
+      } catch (error: any) {
+        // If project not found (404), clear cache and create new one
+        if (error instanceof APIError && error.status === 404) {
+          console.log('[CodeLabAPI] Cached project not found (404), clearing cache and creating new one');
+          await this.context.globalState.update('currentProjectId', undefined);
+          await this.context.globalState.update('currentSessionId', undefined);
+          await this.context.globalState.update('currentProjectName', undefined);
+          projectId = undefined;
+        } else {
+          // Other errors, log and return cached projectId
+          console.warn('[CodeLabAPI] Error checking project, using cached ID anyway:', error);
           return projectId;
         }
-      } catch (error) {
-        console.error('Failed to list projects:', error);
       }
-      
+    }
+    
+    if (!projectId) {
       // Create default project
-      const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
-      const projectName = workspaceFolder?.name || 'Default Project';
-      
       try {
-        const project = await withRetry(() => 
-          this.client.createProject(projectName, workspaceFolder?.uri.fsPath)
+        console.log('[CodeLabAPI] Creating new project:', { currentWorkspaceName, currentWorkspacePath });
+        const project = await withRetry(() =>
+          this.client.createProject(currentWorkspaceName, currentWorkspacePath)
         );
         projectId = project.id;
         await this.context.globalState.update('currentProjectId', projectId);
+        await this.context.globalState.update('currentProjectName', currentWorkspaceName);
+        console.log('[CodeLabAPI] New project created:', { projectId, name: currentWorkspaceName });
         return projectId;
       } catch (error) {
         console.error('Failed to create project:', error);

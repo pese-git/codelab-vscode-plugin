@@ -28,11 +28,11 @@ export function activate(context: vscode.ExtensionContext) {
     }
   });
   
-  // Check if API token is set
-  checkApiToken(context);
+  // Check if API token is set and initialize project
+  initializeExtension(context, api);
 }
 
-async function checkApiToken(context: vscode.ExtensionContext): Promise<void> {
+async function initializeExtension(context: vscode.ExtensionContext, api: CodeLabAPI): Promise<void> {
   const token = await context.secrets.get('codelab.apiToken');
   
   if (!token) {
@@ -45,6 +45,18 @@ async function checkApiToken(context: vscode.ExtensionContext): Promise<void> {
     if (choice === 'Set Token') {
       await vscode.commands.executeCommand('codelab.setApiToken');
     }
+    return;
+  }
+  
+  // Try to get or create project at startup
+  try {
+    console.log('[Extension] Attempting to get or create project...');
+    const projectId = await (api as any).getOrCreateProject();
+    console.log('[Extension] Project ready:', projectId);
+    vscode.window.showInformationMessage('CodeLab project initialized successfully');
+  } catch (error) {
+    console.error('[Extension] Error during initialization:', error);
+    vscode.window.showErrorMessage(`Failed to initialize CodeLab: ${String(error)}`);
   }
 }
 

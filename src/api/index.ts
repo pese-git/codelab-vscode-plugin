@@ -72,21 +72,40 @@ export class CodeLabAPI {
   
   private async getOrCreateProject(): Promise<string> {
     const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+    const hasWorkspace = !!workspaceFolder;
     const currentWorkspaceName = workspaceFolder?.name || 'Default Project';
     const currentWorkspacePath = workspaceFolder?.uri.fsPath;
     
     let projectId = this.context.globalState.get<string>('currentProjectId');
     const savedProjectName = this.context.globalState.get<string>('currentProjectName');
+    const wasUsingDefaultProject = this.context.globalState.get<boolean>('usingDefaultProject');
     
-    console.log('[CodeLabAPI] Workspace check:', { currentWorkspaceName, savedProjectName, projectId });
+    console.log('[CodeLabAPI] Workspace check:', {
+      hasWorkspace,
+      currentWorkspaceName,
+      savedProjectName,
+      projectId,
+      wasUsingDefaultProject
+    });
     
     // If workspace changed, clear cached project and create new one
-    if (projectId && savedProjectName !== currentWorkspaceName) {
+    if (projectId && savedProjectName && savedProjectName !== currentWorkspaceName) {
       console.log('[CodeLabAPI] Workspace changed from', savedProjectName, 'to', currentWorkspaceName);
       console.log('[CodeLabAPI] Clearing cached project and creating new one');
       await this.context.globalState.update('currentProjectId', undefined);
       await this.context.globalState.update('currentSessionId', undefined);
       await this.context.globalState.update('currentProjectName', undefined);
+      await this.context.globalState.update('usingDefaultProject', undefined);
+      projectId = undefined;
+    }
+    
+    // If workspace was added after using default project, clear default project flag
+    if (hasWorkspace && wasUsingDefaultProject) {
+      console.log('[CodeLabAPI] Workspace was opened, switching from default project');
+      await this.context.globalState.update('currentProjectId', undefined);
+      await this.context.globalState.update('currentSessionId', undefined);
+      await this.context.globalState.update('currentProjectName', undefined);
+      await this.context.globalState.update('usingDefaultProject', undefined);
       projectId = undefined;
     }
     
@@ -117,14 +136,24 @@ export class CodeLabAPI {
     if (!projectId) {
       // Create default project
       try {
-        console.log('[CodeLabAPI] Creating new project:', { currentWorkspaceName, currentWorkspacePath });
+        const isDefaultProject = !hasWorkspace;
+        console.log('[CodeLabAPI] Creating new project:', {
+          currentWorkspaceName,
+          currentWorkspacePath,
+          isDefaultProject
+        });
         const project = await withRetry(() =>
           this.client.createProject(currentWorkspaceName, currentWorkspacePath)
         );
         projectId = project.id;
         await this.context.globalState.update('currentProjectId', projectId);
         await this.context.globalState.update('currentProjectName', currentWorkspaceName);
-        console.log('[CodeLabAPI] New project created:', { projectId, name: currentWorkspaceName });
+        await this.context.globalState.update('usingDefaultProject', isDefaultProject);
+        console.log('[CodeLabAPI] New project created:', {
+          projectId,
+          name: currentWorkspaceName,
+          isDefaultProject
+        });
         return projectId;
       } catch (error) {
         console.error('Failed to create project:', error);

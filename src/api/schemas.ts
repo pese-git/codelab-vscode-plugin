@@ -139,8 +139,7 @@ export type StreamEvent = z.infer<typeof StreamEventSchema>;
 
 // Agent
 export const AgentConfigSchema = z.object({
-  name: z.string().min(1).max(100),
-  system_prompt: z.string().min(1),
+  system_prompt: z.string().optional(),
   model: z.string().optional(),
   tools: z.array(z.string()).optional(),
   concurrency_limit: z.number().int().min(1).max(10).optional(),

@@ -479,6 +479,16 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
       
       if (this.isAuthError(error)) {
         await this.handleAuthError();
+      } else if (error.constructor.name === 'ValidationError') {
+        console.error('[ChatViewProvider] Validation error details:', 
+          error.getDetails ? error.getDetails() : error);
+        vscode.window.showWarningMessage(
+          'Failed to load agents: data validation error. Some agents may not be displayed.'
+        );
+        this.postMessage({
+          type: 'agentsLoaded',
+          payload: { agents: [] }
+        });
       } else {
         console.log('[ChatViewProvider] Sending empty agents list');
         this.postMessage({

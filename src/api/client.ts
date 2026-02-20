@@ -123,6 +123,10 @@ export class APIClient {
         throw error;
       }
       
+      if (error instanceof ValidationError) {
+        throw error;
+      }
+      
       if ((error as any).name === 'AbortError') {
         throw new NetworkError('Request timeout');
       }

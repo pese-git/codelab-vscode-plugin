@@ -2,9 +2,12 @@ import { StreamEventSchema, type StreamEvent } from './schemas';
 
 export class StreamingClient {
   private abortController: AbortController | null = null;
+  private reconnectTimeout: ReturnType<typeof setTimeout> | null = null;
   private reconnectAttempts = 0;
   private maxReconnectAttempts = 5;
   private isConnected = false;
+  private isManuallyDisconnected = false;
+  private connectionId = 0;
   private eventHandlers: Map<string, (event: StreamEvent) => void> = new Map();
   
   constructor(
@@ -15,6 +18,15 @@ export class StreamingClient {
   ) {}
   
   async connect(): Promise<void> {
+    this.isManuallyDisconnected = false;
+    this.connectionId++;
+    const currentConnectionId = this.connectionId;
+
+    if (this.reconnectTimeout) {
+      clearTimeout(this.reconnectTimeout);
+      this.reconnectTimeout = null;
+    }
+
     this.abortController = new AbortController();
     const url = `${this.baseUrl}/my/projects/${this.projectId}/chat/${this.sessionId}/events/`;
     
@@ -38,18 +50,20 @@ export class StreamingClient {
       this.isConnected = true;
       this.reconnectAttempts = 0;
       this.onConnected?.();
-      
-      await this.readStream(response.body);
+      void this.readStream(response.body, currentConnectionId);
       
     } catch (error) {
-      if ((error as any).name === 'AbortError') {
+      if ((error as any).name === 'AbortError' || this.isManuallyDisconnected) {
         return;
       }
-      this.handleConnectionError(error as Error);
+      this.handleConnectionError(error as Error, currentConnectionId);
     }
   }
   
-  private async readStream(body: ReadableStream<Uint8Array>): Promise<void> {
+  private async readStream(
+    body: ReadableStream<Uint8Array>,
+    currentConnectionId: number
+  ): Promise<void> {
     const reader = body.getReader();
     const decoder = new TextDecoder();
     let buffer = '';
@@ -60,7 +74,7 @@ export class StreamingClient {
         
         if (done) {
           this.isConnected = false;
-          this.handleConnectionError(new Error('Stream ended'));
+          this.handleConnectionError(new Error('Stream ended'), currentConnectionId);
           break;
         }
         
@@ -74,7 +88,9 @@ export class StreamingClient {
       }
     } catch (error) {
       this.isConnected = false;
-      this.handleConnectionError(error as Error);
+      if (!this.isManuallyDisconnected) {
+        this.handleConnectionError(error as Error, currentConnectionId);
+      }
     } finally {
       reader.releaseLock();
     }
@@ -117,7 +133,11 @@ export class StreamingClient {
     }
   }
   
-  private handleConnectionError(error: Error): void {
+  private handleConnectionError(error: Error, currentConnectionId: number): void {
+    if (this.isManuallyDisconnected || currentConnectionId !== this.connectionId) {
+      return;
+    }
+
     this.isConnected = false;
     this.onError?.(error);
     
@@ -125,7 +145,11 @@ export class StreamingClient {
       this.reconnectAttempts++;
       const delay = Math.min(1000 * Math.pow(2, this.reconnectAttempts - 1), 30000);
       
-      setTimeout(() => {
+      this.reconnectTimeout = setTimeout(() => {
+        if (this.isManuallyDisconnected || currentConnectionId !== this.connectionId) {
+          return;
+        }
+
         this.connect().catch(err => {
           console.error('Reconnect failed:', err);
         });
@@ -136,6 +160,15 @@ export class StreamingClient {
   }
   
   disconnect(): void {
+    this.isManuallyDisconnected = true;
+    this.connectionId++;
+    this.reconnectAttempts = 0;
+
+    if (this.reconnectTimeout) {
+      clearTimeout(this.reconnectTimeout);
+      this.reconnectTimeout = null;
+    }
+
     if (this.abortController) {
       this.abortController.abort();
       this.abortController = null;

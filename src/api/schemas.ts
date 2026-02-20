@@ -103,7 +103,9 @@ export const StreamEventSchema = z.object({
     'heartbeat',
     'direct_agent_call',
     'task_started',
-    'task_completed'
+    'task_progress',
+    'task_completed',
+    'error'
   ]).optional(),
   event_type: z.enum([
     'message_received',
@@ -118,7 +120,9 @@ export const StreamEventSchema = z.object({
     'heartbeat',
     'direct_agent_call',
     'task_started',
-    'task_completed'
+    'task_progress',
+    'task_completed',
+    'error'
   ]).optional(),
   agent_id: z.string().uuid().nullable().optional(),
   content: z.string().nullable().optional(),

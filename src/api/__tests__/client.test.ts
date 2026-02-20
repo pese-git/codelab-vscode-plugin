@@ -6,6 +6,7 @@ import type * as vscode from 'vscode';
 describe('APIClient', () => {
   let client: APIClient;
   let mockContext: any;
+  const projectId = '550e8400-e29b-41d4-a716-446655440001';
   
   beforeEach(() => {
     mockContext = {
@@ -25,18 +26,18 @@ describe('APIClient', () => {
       json: async () => ({
         id: mockSessionId,
         created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
+        message_count: 0
       })
     }) as any;
     
-    const session = await client.createSession();
+    const session = await client.createSession(projectId);
     expect(session.id).toBe(mockSessionId);
   });
   
   it('should handle 401 error', async () => {
     mockContext.secrets.get.mockResolvedValue(null);
     
-    await expect(client.createSession()).rejects.toThrow(APIError);
+    await expect(client.createSession(projectId)).rejects.toThrow(APIError);
   });
   
   it('should validate response with Zod', async () => {
@@ -45,6 +46,6 @@ describe('APIClient', () => {
       json: async () => ({ invalid: 'data' })
     }) as any;
     
-    await expect(client.createSession()).rejects.toThrow();
+    await expect(client.createSession(projectId)).rejects.toThrow();
   });
 });

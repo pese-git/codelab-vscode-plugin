@@ -10,7 +10,9 @@ export class CodeLabAPI {
   private client: APIClient;
   private streamingClient: StreamingClient | null = null;
   private authManager: AuthManager;
-  private lastWorkspacePath: string | undefined;
+  private activeStreamKey: string | null = null;
+  private streamingConnectPromise: Promise<void> | null = null;
+  private connectingStreamKey: string | null = null;
   
   constructor(private context: vscode.ExtensionContext) {
     this.client = new APIClient(context);
@@ -49,11 +51,7 @@ export class CodeLabAPI {
     }
     
     // 3. Подключить streaming если еще не подключен
-    if (!this.streamingClient) {
-      console.log('[CodeLabAPI] Streaming client not connected, connecting...');
-      await this.connectStreaming(projectId, sessionId);
-      console.log('[CodeLabAPI] Streaming client connected');
-    }
+    await this.connectStreaming(projectId, sessionId);
     
     // 4. Отправить сообщение
     const request: MessageRequest = {
@@ -166,105 +164,154 @@ export class CodeLabAPI {
   
   private async connectStreaming(projectId: string, sessionId: string): Promise<void> {
     console.log('[CodeLabAPI] connectStreaming called with:', { projectId, sessionId });
+    const streamKey = `${projectId}:${sessionId}`;
+
+    if (this.activeStreamKey === streamKey && this.streamingClient?.getConnectionState()) {
+      return;
+    }
+
+    if (this.streamingConnectPromise && this.connectingStreamKey === streamKey) {
+      await this.streamingConnectPromise;
+      return;
+    }
+
+    if (this.streamingClient) {
+      this.streamingClient.disconnect();
+      this.streamingClient = null;
+      this.activeStreamKey = null;
+    }
+
     const token = await this.authManager.getToken();
     if (!token) {
       throw new Error('Not authenticated');
     }
     
     const config = getAPIConfig();
-    this.streamingClient = new StreamingClient(
+    const streamingClient = new StreamingClient(
       projectId,
       sessionId,
       token,
       config.baseUrl
     );
-    
-    // Setup event handlers
+
+    this.streamingClient = streamingClient;
+    this.connectingStreamKey = streamKey;
+
     console.log('[CodeLabAPI] Setting up streaming handlers before connect...');
-    this.setupStreamingHandlers();
+    this.setupStreamingHandlers(streamingClient);
     console.log('[CodeLabAPI] Streaming handlers setup complete');
-    
-    // Connect
-    console.log('[CodeLabAPI] Connecting to streaming endpoint...');
-    await this.streamingClient.connect();
-    console.log('[CodeLabAPI] Streaming connected');
+
+    const connectPromise = (async () => {
+      console.log('[CodeLabAPI] Connecting to streaming endpoint...');
+      await streamingClient.connect();
+
+      // Ignore stale connection completion
+      if (this.streamingClient !== streamingClient) {
+        return;
+      }
+
+      this.activeStreamKey = streamKey;
+      console.log('[CodeLabAPI] Streaming connected');
+    })();
+
+    this.streamingConnectPromise = connectPromise;
+
+    try {
+      await connectPromise;
+    } finally {
+      if (this.streamingConnectPromise === connectPromise) {
+        this.streamingConnectPromise = null;
+      }
+      if (this.connectingStreamKey === streamKey) {
+        this.connectingStreamKey = null;
+      }
+    }
   }
   
-  private setupStreamingHandlers(): void {
-    if (!this.streamingClient) {return;}
+  private setupStreamingHandlers(streamingClient: StreamingClient): void {
     
     console.log('[CodeLabAPI] Setting up streaming handlers...');
     
-    this.streamingClient.on('message_received', (event) => {
+    streamingClient.on('message_received', (event) => {
       console.log('[CodeLabAPI] message_received event:', event);
       this.onMessageReceived?.(event.payload || event);
     });
     
-    this.streamingClient.on('message_created', (event) => {
+    streamingClient.on('message_created', (event) => {
       console.log('[CodeLabAPI] message_created event:', event);
       const payload = event.payload || event;
       console.log('[CodeLabAPI] message_created payload extracted:', payload);
       this.onMessageCreated?.(payload);
     });
     
-    this.streamingClient.on('agent_started', (event) => {
+    streamingClient.on('agent_started', (event) => {
       console.log('[CodeLabAPI] agent_started event:', event);
       this.onAgentStarted?.(event.payload || event);
     });
     
-    this.streamingClient.on('agent_status_changed', (event) => {
+    streamingClient.on('agent_status_changed', (event) => {
       console.log('[CodeLabAPI] agent_status_changed event:', event);
       this.onAgentStatusChanged?.(event.payload || event);
     });
     
-    this.streamingClient.on('agent_response', (event) => {
+    streamingClient.on('agent_response', (event) => {
       console.log('[CodeLabAPI] agent_response event:', event);
       this.onAgentResponse?.(event.payload || event);
     });
     
-    this.streamingClient.on('agent_completed', (event) => {
+    streamingClient.on('agent_completed', (event) => {
       console.log('[CodeLabAPI] agent_completed event:', event);
       this.onAgentCompleted?.(event.payload || event);
     });
     
-    this.streamingClient.on('orchestration_started', (event) => {
+    streamingClient.on('orchestration_started', (event) => {
       console.log('[CodeLabAPI] orchestration_started event:', event);
       this.onOrchestrationStarted?.(event.payload || event);
     });
     
-    this.streamingClient.on('orchestration_plan_created', (event) => {
+    streamingClient.on('orchestration_plan_created', (event) => {
       console.log('[CodeLabAPI] orchestration_plan_created event:', event);
       this.onOrchestrationPlanCreated?.(event.payload || event);
     });
     
-    this.streamingClient.on('orchestration_completed', (event) => {
+    streamingClient.on('orchestration_completed', (event) => {
       console.log('[CodeLabAPI] orchestration_completed event:', event);
       this.onOrchestrationCompleted?.(event.payload || event);
     });
     
-    this.streamingClient.on('direct_agent_call', (event) => {
+    streamingClient.on('direct_agent_call', (event) => {
       console.log('[CodeLabAPI] direct_agent_call event:', event);
       this.onDirectAgentCall?.(event.payload || event);
     });
     
-    this.streamingClient.on('task_started', (event) => {
+    streamingClient.on('task_started', (event) => {
       console.log('[CodeLabAPI] task_started event:', event);
       this.onTaskStarted?.(event.payload || event);
     });
     
-    this.streamingClient.on('task_completed', (event) => {
+    streamingClient.on('task_progress', (event) => {
+      console.log('[CodeLabAPI] task_progress event:', event);
+      this.onTaskProgress?.(event.payload || event);
+    });
+
+    streamingClient.on('task_completed', (event) => {
       console.log('[CodeLabAPI] task_completed event:', event);
       this.onTaskCompleted?.(event.payload || event);
+    });
+
+    streamingClient.on('error', (event) => {
+      console.log('[CodeLabAPI] stream error event:', event);
+      this.onStreamError?.(event.payload || event);
     });
     
     console.log('[CodeLabAPI] All handlers registered');
     
-    this.streamingClient.onConnected = () => {
+    streamingClient.onConnected = () => {
       console.log('[CodeLabAPI] Streaming client connected');
       vscode.window.showInformationMessage('Connected to CodeLab');
     };
     
-    this.streamingClient.onMaxReconnectAttemptsReached = () => {
+    streamingClient.onMaxReconnectAttemptsReached = () => {
       console.log('[CodeLabAPI] Max reconnect attempts reached');
       vscode.window.showErrorMessage('Failed to connect to CodeLab. Please check your connection.');
     };
@@ -282,7 +329,9 @@ export class CodeLabAPI {
   onMessageCreated?: (payload: any) => void;
   onDirectAgentCall?: (payload: any) => void;
   onTaskStarted?: (payload: any) => void;
+  onTaskProgress?: (payload: any) => void;
   onTaskCompleted?: (payload: any) => void;
+  onStreamError?: (payload: any) => void;
   
   async getCurrentProjectId(): Promise<string | undefined> {
     return this.context.globalState.get<string>('currentProjectId');
@@ -298,6 +347,7 @@ export class CodeLabAPI {
     if (this.streamingClient) {
       this.streamingClient.disconnect();
       this.streamingClient = null;
+      this.activeStreamKey = null;
     }
   }
   
@@ -312,19 +362,17 @@ export class CodeLabAPI {
   }
   
   async switchSession(sessionId: string): Promise<void> {
-    await this.context.globalState.update('currentSessionId', sessionId);
-    
-    // Reconnect streaming to new session
-    if (this.streamingClient) {
-      this.streamingClient.disconnect();
-      this.streamingClient = null;
-    }
-    
-    // Подключаем streaming в фоне, не блокируя переключение сессии
     const projectId = await this.getOrCreateProject();
-    this.connectStreaming(projectId, sessionId).catch(error => {
-      console.error('Failed to connect streaming for session:', sessionId, error);
-    });
+    const requestedKey = `${projectId}:${sessionId}`;
+
+    if (this.activeStreamKey === requestedKey && this.streamingClient?.getConnectionState()) {
+      await this.context.globalState.update('currentSessionId', sessionId);
+      return;
+    }
+
+    await this.context.globalState.update('currentSessionId', sessionId);
+
+    await this.connectStreaming(projectId, sessionId);
   }
   
   async deleteSession(sessionId: string): Promise<void> {
@@ -339,6 +387,7 @@ export class CodeLabAPI {
       if (this.streamingClient) {
         this.streamingClient.disconnect();
         this.streamingClient = null;
+        this.activeStreamKey = null;
       }
     }
   }
@@ -347,12 +396,6 @@ export class CodeLabAPI {
     const projectId = await this.getOrCreateProject();
     const session = await withRetry(() => this.client.createSession(projectId));
     await this.context.globalState.update('currentSessionId', session.id);
-    
-    // Reconnect streaming
-    if (this.streamingClient) {
-      this.streamingClient.disconnect();
-      this.streamingClient = null;
-    }
     
     await this.connectStreaming(projectId, session.id);
     return session.id;
@@ -365,6 +408,10 @@ export class CodeLabAPI {
   
   dispose(): void {
     this.streamingClient?.disconnect();
+    this.streamingClient = null;
+    this.activeStreamKey = null;
+    this.streamingConnectPromise = null;
+    this.connectingStreamKey = null;
   }
 }
 

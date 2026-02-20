@@ -7,6 +7,10 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
   
   private _view?: vscode.WebviewView;
   private diffEngine: DiffEngine;
+  private isCreatingChat = false;
+  private isLoadingSessions = false;
+  private isLoadingAgents = false;
+  private switchingSessionId: string | null = null;
   
   constructor(
     private readonly _extensionUri: vscode.Uri,
@@ -239,10 +243,20 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
       console.log('[ChatViewProvider] Forwarding taskStarted:', payload);
       this.postMessage({ type: 'taskStarted', payload });
     };
+
+    this.api.onTaskProgress = (payload) => {
+      console.log('[ChatViewProvider] Forwarding taskProgress:', payload);
+      this.postMessage({ type: 'taskProgress', payload });
+    };
     
     this.api.onTaskCompleted = (payload) => {
       console.log('[ChatViewProvider] Forwarding taskCompleted:', payload);
       this.postMessage({ type: 'taskCompleted', payload });
+    };
+
+    this.api.onStreamError = (payload) => {
+      console.log('[ChatViewProvider] Forwarding streamError:', payload);
+      this.postMessage({ type: 'streamError', payload });
     };
   }
   
@@ -306,6 +320,12 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
   }
   
   private async startNewChat(): Promise<void> {
+    if (this.isCreatingChat) {
+      console.log('[ChatViewProvider] Ignoring duplicate newChat request');
+      return;
+    }
+
+    this.isCreatingChat = true;
     try {
       await this.api.createNewSession();
       await this.sendInitialState();
@@ -322,10 +342,18 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
       } else {
         vscode.window.showErrorMessage(`Failed to create new chat: ${error.message || String(error)}`);
       }
+    } finally {
+      this.isCreatingChat = false;
     }
   }
   
   private async loadSessions(): Promise<void> {
+    if (this.isLoadingSessions) {
+      console.log('[ChatViewProvider] Ignoring duplicate loadSessions request');
+      return;
+    }
+
+    this.isLoadingSessions = true;
     console.log('[ChatViewProvider] loadSessions called');
     try {
       const response = await this.api.listSessions();
@@ -352,10 +380,22 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
           payload: { sessions: [] }
         });
       }
+    } finally {
+      this.isLoadingSessions = false;
     }
   }
   
   private async switchSession(sessionId: string): Promise<void> {
+    if (!sessionId) {
+      return;
+    }
+
+    if (this.switchingSessionId === sessionId) {
+      console.log('[ChatViewProvider] Ignoring duplicate switchSession request for:', sessionId);
+      return;
+    }
+
+    this.switchingSessionId = sessionId;
     console.log('[ChatViewProvider] switchSession called with:', sessionId);
     try {
       // Сначала проверяем, существует ли сессия, загрузив её историю
@@ -389,6 +429,8 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
       } else {
         vscode.window.showErrorMessage(`Failed to switch session: ${error.message || String(error)}`);
       }
+    } finally {
+      this.switchingSessionId = null;
     }
   }
   
@@ -414,6 +456,12 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
   }
   
   private async loadAgents(): Promise<void> {
+    if (this.isLoadingAgents) {
+      console.log('[ChatViewProvider] Ignoring duplicate loadAgents request');
+      return;
+    }
+
+    this.isLoadingAgents = true;
     console.log('[ChatViewProvider] loadAgents called');
     try {
       const response = await this.api.listAgents();
@@ -438,6 +486,8 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
           payload: { agents: [] }
         });
       }
+    } finally {
+      this.isLoadingAgents = false;
     }
   }
 }

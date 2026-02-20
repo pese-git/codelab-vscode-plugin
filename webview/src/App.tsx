@@ -21,6 +21,7 @@ export const App: React.FC = () => {
   const [sessions, setSessions] = useState<ChatSession[]>([]);
   const [agents, setAgents] = useState<Agent[]>([]);
   const [selectedAgent, setSelectedAgent] = useState<Agent | null>(null);
+  const [isCreatingSession, setIsCreatingSession] = useState(false);
   
   // Показываем список сессий, когда нет активной сессии или нет сообщений
   const [view, setView] = useState<'sessions' | 'chat'>(() => {
@@ -62,8 +63,6 @@ export const App: React.FC = () => {
           }
           // Всегда показываем список сессий при старте
           state.setView('sessions');
-          // Запрашиваем обновление списка сессий
-          state.vscode.postMessage({ type: 'loadSessions' });
           break;
           
         case 'sessionsLoaded':
@@ -187,11 +186,6 @@ export const App: React.FC = () => {
   const handleSendMessage = (content: string, targetAgent?: string) => {
     console.log('[App] Sending message:', content, 'targetAgent:', targetAgent);
     
-    // Если нет активной сессии, создаём новую
-    if (!sessionId) {
-      vscode.postMessage({ type: 'newChat' });
-    }
-    
     // Add user message to UI immediately
     addMessage({
       id: `user-${Date.now()}`,
@@ -213,11 +207,18 @@ export const App: React.FC = () => {
   };
   
   const handleNewChat = () => {
+    if (isCreatingSession) {
+      console.log('[App] Ignoring duplicate new chat request');
+      return;
+    }
+
+    setIsCreatingSession(true);
     console.log('[App] New chat requested');
     vscode.postMessage({ type: 'newChat' });
     clearMessages();
     setSessionId(null);
     setView('sessions');
+    window.setTimeout(() => setIsCreatingSession(false), 400);
   };
   
   const handleSessionSelect = (selectedSessionId: string) => {

@@ -5,6 +5,7 @@ import { AuthManager } from './auth';
 import { getAPIConfig } from './config';
 import { withRetry, APIError } from './errors';
 import type { MessageRequest } from './schemas';
+import { t } from '../i18n/messages';
 
 export class CodeLabAPI {
   private client: APIClient;
@@ -308,12 +309,12 @@ export class CodeLabAPI {
     
     streamingClient.onConnected = () => {
       console.log('[CodeLabAPI] Streaming client connected');
-      vscode.window.showInformationMessage('Connected to CodeLab');
+      vscode.window.showInformationMessage(t('info.connected'));
     };
     
     streamingClient.onMaxReconnectAttemptsReached = () => {
       console.log('[CodeLabAPI] Max reconnect attempts reached');
-      vscode.window.showErrorMessage('Failed to connect to CodeLab. Please check your connection.');
+      vscode.window.showErrorMessage(t('errors.connectionFailed'));
     };
   }
   

@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import { CodeLabAPI, APIError, ValidationError, NetworkError } from '../api';
 import { DiffEngine } from '../diff/engine';
+import { t } from '../i18n/messages';
 
 export class ChatViewProvider implements vscode.WebviewViewProvider {
   public static readonly viewType = 'codelab.chatView';
@@ -27,7 +28,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
   
   private async handleAuthError(): Promise<void> {
     const action = await vscode.window.showErrorMessage(
-      'API token not set or expired. Please set your CodeLab API token.',
+      t('errors.authRequired'),
       'Set Token'
     );
     
@@ -127,18 +128,18 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
             console.error('Validation error details:', error.getDetails());
             this.postMessage({
               type: 'error',
-              payload: { message: `Validation error: ${error.message}` }
+              payload: { message: t('errors.validationError', { message: error.message }) }
             });
-            vscode.window.showErrorMessage(`Validation error: ${error.message}`);
+            vscode.window.showErrorMessage(t('errors.validationError', { message: error.message }));
           } else if (error instanceof NetworkError) {
             this.postMessage({
               type: 'error',
-              payload: { message: `Network error: ${error.message}` }
+              payload: { message: t('errors.networkError', { message: error.message }) }
             });
           } else if (error instanceof APIError) {
             this.postMessage({
               type: 'error',
-              payload: { message: `API error (${error.status}): ${error.message}` }
+              payload: { message: t('errors.apiError', { status: error.status, message: error.message }) }
             });
           } else {
             this.postMessage({
@@ -159,7 +160,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
         
       case 'copyCode':
         await vscode.env.clipboard.writeText(message.code);
-        vscode.window.showInformationMessage('Code copied to clipboard');
+        vscode.window.showInformationMessage(t('info.codeCopied'));
         break;
         
       case 'newChat':
@@ -330,7 +331,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
       await this.api.createNewSession();
       await this.sendInitialState();
       await this.loadSessions();
-      vscode.window.showInformationMessage('New chat session created');
+      vscode.window.showInformationMessage(t('info.sessionCreated'));
     } catch (error: any) {
       console.error('Error creating new chat:', error);
       
@@ -423,11 +424,11 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
       if (this.isAuthError(error)) {
         await this.handleAuthError();
       } else if (error instanceof APIError && error.status === 404) {
-        vscode.window.showWarningMessage('Session not found. It may have been deleted.');
+        vscode.window.showWarningMessage(t('errors.sessionNotFound'));
         // Обновляем список сессий
         await this.loadSessions();
       } else {
-        vscode.window.showErrorMessage(`Failed to switch session: ${error.message || String(error)}`);
+        vscode.window.showErrorMessage(t('errors.failedToSwitch', { message: error.message || String(error) }));
       }
     } finally {
       this.switchingSessionId = null;
@@ -438,7 +439,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
     try {
       await this.api.deleteSession(sessionId);
       await this.loadSessions();
-      vscode.window.showInformationMessage('Session deleted');
+      vscode.window.showInformationMessage(t('info.sessionDeleted'));
     } catch (error: any) {
       console.error('Error deleting session:', error);
       
@@ -450,7 +451,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
         await this.loadSessions();
         vscode.window.showInformationMessage('Session removed from list');
       } else {
-        vscode.window.showErrorMessage(`Failed to delete session: ${error.message || String(error)}`);
+        vscode.window.showErrorMessage(t('errors.failedToDelete', { message: error.message || String(error) }));
       }
     }
   }
@@ -483,7 +484,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
         console.error('[ChatViewProvider] Validation error details:', 
           error.getDetails ? error.getDetails() : error);
         vscode.window.showWarningMessage(
-          'Failed to load agents: data validation error. Some agents may not be displayed.'
+          t('errors.agentsLoadFailed')
         );
         this.postMessage({
           type: 'agentsLoaded',

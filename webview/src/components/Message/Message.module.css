@@ -18,6 +18,15 @@
   margin-right: 48px;
 }
 
+.systemMessage {
+  border-left: 3px solid var(--vscode-textLink-foreground);
+}
+
+.errorMessage {
+  border-left-color: var(--vscode-inputValidation-errorBorder);
+  background-color: var(--vscode-inputValidation-errorBackground, var(--vscode-editor-background));
+}
+
 .messageHeader {
   display: flex;
   justify-content: space-between;

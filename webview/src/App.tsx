@@ -124,6 +124,24 @@ export const App: React.FC = () => {
           // Progress сообщение останется в истории
           console.log('[App] Task completed, waiting for messageCreated event');
           break;
+
+        case 'streamError':
+          console.log('[App] Stream error:', message.payload);
+          state.setIsLoading(false);
+
+          {
+            const payload = message.payload || {};
+            const errorText = payload.error || payload.message || 'Unknown stream error';
+            const agentName = payload.agent_name || payload.agent_id || 'agent';
+            state.addMessage({
+              id: `stream-error-${Date.now()}`,
+              role: 'system',
+              content: `Error from ${agentName}: ${errorText}`,
+              timestamp: new Date().toISOString(),
+              isError: true
+            });
+          }
+          break;
           
         case 'messageCreated':
           console.log('[App] Message created event received:', message);

@@ -26,11 +26,17 @@ export const SimpleAssistantMessage: React.FC<SimpleAssistantMessageProps> = ({ 
     navigator.clipboard.writeText(code);
   };
 
+  const roleLabel = message.role === 'system' ? 'System' : 'Assistant';
+
   return (
     <div className={styles.messageWrapper}>
-      <div className={`${styles.message} ${styles.assistantMessage}`}>
+      <div
+        className={`${styles.message} ${styles.assistantMessage} ${
+          message.role === 'system' ? styles.systemMessage : ''
+        } ${message.isError ? styles.errorMessage : ''}`}
+      >
         <div className={styles.messageHeader}>
-          <span className={styles.messageRole}>Assistant</span>
+          <span className={styles.messageRole}>{roleLabel}</span>
           <span className={styles.messageTime}>
             {formatTime(message.timestamp)}
           </span>

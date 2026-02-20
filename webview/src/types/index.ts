@@ -5,6 +5,7 @@ export interface Message {
   timestamp: string;
   agentId?: string;
   isProgress?: boolean;
+  isError?: boolean;
   progress?: number;
   diff?: string;
 }
@@ -34,7 +35,7 @@ export interface VSCodeAPI {
 }
 
 export interface MessageFromExtension {
-  type: 'initialState' | 'taskStarted' | 'taskProgress' | 'taskCompleted' | 'codeCopied' | 'sessionsLoaded' | 'sessionSwitched' | 'agentsLoaded';
+  type: 'initialState' | 'taskStarted' | 'taskProgress' | 'taskCompleted' | 'codeCopied' | 'sessionsLoaded' | 'sessionSwitched' | 'agentsLoaded' | 'streamError';
   payload?: any;
 }
 

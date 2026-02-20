@@ -132,6 +132,33 @@ npm test
 - [ ] Кэширование успешных ответов
 - [ ] Автоматическая генерация схем из OpenAPI спецификации
 
+## 2026-02-20: API Validation and Localization
+
+**Файл:** [api-validation-and-localization.md](api-validation-and-localization.md)
+
+**Проблема:** Ошибки валидации при загрузке агентов, отсутствие локализации
+
+**Решение:**
+- Исправлена схема `AgentConfigSchema` - удалено поле `name` из config
+- Улучшена обработка `ValidationError` в API клиенте
+- Добавлена система локализации с поддержкой русского языка
+- Добавлено детальное логирование ValidationError в ChatViewProvider
+
+**Измененные файлы:**
+- [`src/api/schemas.ts`](../../src/api/schemas.ts) - исправлена AgentConfigSchema
+- [`src/api/client.ts`](../../src/api/client.ts) - улучшена обработка ValidationError
+- [`src/ui/ChatViewProvider.ts`](../../src/ui/ChatViewProvider.ts) - добавлено логирование и локализация
+- [`src/i18n/messages.ts`](../../src/i18n/messages.ts) - новая система локализованных сообщений
+- [`src/i18n/index.ts`](../../src/i18n/index.ts) - функция `t()` для локализации
+
+**Результаты тестирования:**
+- ✅ TypeScript компиляция без ошибок
+- ✅ Linting без предупреждений
+- ✅ Проверка типов успешна
+- ✅ Локализация работает корректно
+
+**Статус:** ✅ Исправлено
+
 ## Связанные документы
 
 - [Подробное описание исправлений](error-handling-improvements.md)

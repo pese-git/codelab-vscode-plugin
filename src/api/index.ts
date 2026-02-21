@@ -300,6 +300,22 @@ export class CodeLabAPI {
       this.onTaskCompleted?.(event.payload || event);
     });
 
+    // Tool events
+    streamingClient.on('tool_approval_request', (event) => {
+      console.log('[CodeLabAPI] tool_approval_request event:', event);
+      this.onToolApprovalRequest?.(event.payload || event);
+    });
+
+    streamingClient.on('tool_execution_signal', (event) => {
+      console.log('[CodeLabAPI] tool_execution_signal event:', event);
+      this.onToolExecutionSignal?.(event.payload || event);
+    });
+
+    streamingClient.on('tool_result_ack', (event) => {
+      console.log('[CodeLabAPI] tool_result_ack event:', event);
+      this.onToolResultAck?.(event.payload || event);
+    });
+
     streamingClient.on('error', (event) => {
       console.log('[CodeLabAPI] stream error event:', event);
       this.onStreamError?.(event.payload || event);
@@ -332,6 +348,12 @@ export class CodeLabAPI {
   onTaskStarted?: (payload: any) => void;
   onTaskProgress?: (payload: any) => void;
   onTaskCompleted?: (payload: any) => void;
+  
+  // Tool events
+  onToolApprovalRequest?: (payload: any) => void;
+  onToolExecutionSignal?: (payload: any) => void;
+  onToolResultAck?: (payload: any) => void;
+  
   onStreamError?: (payload: any) => void;
   
   async getCurrentProjectId(): Promise<string | undefined> {
@@ -405,6 +427,40 @@ export class CodeLabAPI {
   async listAgents() {
     const projectId = await this.getOrCreateProject();
     return await withRetry(() => this.client.listAgents(projectId));
+  }
+
+  // ==================== Tool Methods ====================
+
+  async approveToolExecution(approvalId: string): Promise<void> {
+    const projectId = await this.getOrCreateProject();
+    console.log('[CodeLabAPI] Approving tool execution:', approvalId);
+    await withRetry(() => this.client.approveToolExecution(projectId, approvalId));
+  }
+
+  async rejectToolExecution(approvalId: string, reason?: string): Promise<void> {
+    const projectId = await this.getOrCreateProject();
+    console.log('[CodeLabAPI] Rejecting tool execution:', approvalId);
+    await withRetry(() => this.client.rejectToolExecution(projectId, approvalId, reason));
+  }
+
+  async submitToolResult(
+    toolId: string,
+    result: {
+      status: 'completed' | 'failed';
+      result?: {
+        success: boolean;
+        stdout?: string;
+        stderr?: string;
+        exit_code?: number;
+        output?: string;
+        error?: string;
+      };
+      error?: string;
+    }
+  ): Promise<void> {
+    const projectId = await this.getOrCreateProject();
+    console.log('[CodeLabAPI] Submitting tool result:', toolId, result);
+    await withRetry(() => this.client.submitToolResult(projectId, toolId, result));
   }
   
   dispose(): void {

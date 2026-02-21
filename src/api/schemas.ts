@@ -105,6 +105,9 @@ export const StreamEventSchema = z.object({
     'task_started',
     'task_progress',
     'task_completed',
+    'tool_approval_request',
+    'tool_execution_signal',
+    'tool_result_ack',
     'error'
   ]).optional(),
   event_type: z.enum([
@@ -122,6 +125,9 @@ export const StreamEventSchema = z.object({
     'task_started',
     'task_progress',
     'task_completed',
+    'tool_approval_request',
+    'tool_execution_signal',
+    'tool_result_ack',
     'error'
   ]).optional(),
   agent_id: z.string().uuid().nullable().optional(),

@@ -1,0 +1,189 @@
+.approvalBlock {
+  background: var(--vscode-editor-background, #1e1e1e);
+  border: 2px solid var(--vscode-focusBorder, #007acc);
+  border-radius: 8px;
+  padding: 16px;
+  margin: 12px 0;
+  animation: slideIn 0.3s ease-out;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--vscode-panel-border, #cccccc);
+}
+
+.title {
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--vscode-editor-foreground, #d4d4d4);
+}
+
+.timer {
+  font-size: 13px;
+  color: var(--vscode-textBlockQuote-border, #a0a0a0);
+  font-family: 'Courier New', monospace;
+}
+
+.content {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.toolInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.toolName {
+  font-size: 13px;
+  color: var(--vscode-editor-foreground, #d4d4d4);
+}
+
+.toolName code {
+  background: var(--vscode-editor-lineHighlightBackground, #2d2d30);
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-family: 'Courier New', monospace;
+  color: var(--vscode-terminal-ansiCyan, #4ec9b0);
+}
+
+.riskLevel {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.riskBadge {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  border: 2px solid;
+  background: transparent;
+}
+
+.description {
+  font-size: 13px;
+  color: var(--vscode-descriptionForeground, #b0b0b0);
+  padding: 8px;
+  background: var(--vscode-editor-lineHighlightBackground, #2d2d30);
+  border-left: 3px solid var(--vscode-focusBorder, #007acc);
+  border-radius: 3px;
+}
+
+.paramsSection {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.paramsLabel {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--vscode-descriptionForeground, #b0b0b0);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.params {
+  background: var(--vscode-editor-lineHighlightBackground, #2d2d30);
+  border: 1px solid var(--vscode-panel-border, #cccccc);
+  border-radius: 3px;
+  padding: 10px;
+  font-size: 11px;
+  max-height: 200px;
+  overflow-y: auto;
+  color: var(--vscode-terminal-ansiBrightGreen, #4ec9b0);
+  font-family: 'Courier New', monospace;
+  margin: 0;
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.button {
+  flex: 1;
+  padding: 8px 12px;
+  border: none;
+  border-radius: 4px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.approveButton {
+  background: var(--vscode-testing-runIcon, #10b981);
+  color: white;
+}
+
+.approveButton:hover:not(:disabled) {
+  background: #059669;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(16, 185, 129, 0.3);
+}
+
+.approveButton:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.rejectButton {
+  background: var(--vscode-errorForeground, #ef4444);
+  color: white;
+}
+
+.rejectButton:hover:not(:disabled) {
+  background: #dc2626;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(239, 68, 68, 0.3);
+}
+
+.rejectButton:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+/* Scrollbar styling */
+.params::-webkit-scrollbar {
+  width: 6px;
+}
+
+.params::-webkit-scrollbar-track {
+  background: var(--vscode-editor-background, #1e1e1e);
+}
+
+.params::-webkit-scrollbar-thumb {
+  background: var(--vscode-scrollbarSlider-background, #424242);
+  border-radius: 3px;
+}
+
+.params::-webkit-scrollbar-thumb:hover {
+  background: var(--vscode-scrollbarSlider-hoverBackground, #5a5a5a);
+}

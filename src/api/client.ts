@@ -298,4 +298,58 @@ export class APIClient {
       { method: 'DELETE' }
     );
   }
+
+  // ==================== Tool Methods ====================
+
+  async approveToolExecution(
+    projectId: string,
+    approvalId: string
+  ): Promise<{ success: boolean; approval_id: string; status: string }> {
+    return await this.request(
+      `/my/projects/${projectId}/approvals/${approvalId}/approve`,
+      {
+        method: 'POST',
+        body: JSON.stringify({ decision: 'approved' })
+      }
+    );
+  }
+
+  async rejectToolExecution(
+    projectId: string,
+    approvalId: string,
+    reason?: string
+  ): Promise<{ success: boolean; approval_id: string; status: string }> {
+    return await this.request(
+      `/my/projects/${projectId}/approvals/${approvalId}/reject`,
+      {
+        method: 'POST',
+        body: JSON.stringify({ reason: reason || 'User declined execution' })
+      }
+    );
+  }
+
+  async submitToolResult(
+    projectId: string,
+    toolId: string,
+    result: {
+      status: 'completed' | 'failed';
+      result?: {
+        success: boolean;
+        stdout?: string;
+        stderr?: string;
+        exit_code?: number;
+        output?: string;
+        error?: string;
+      };
+      error?: string;
+    }
+  ): Promise<{ success: boolean; tool_id: string; status: string; message?: string }> {
+    return await this.request(
+      `/my/projects/${projectId}/tools/${toolId}/result`,
+      {
+        method: 'POST',
+        body: JSON.stringify(result)
+      }
+    );
+  }
 }

@@ -35,16 +35,20 @@ export interface VSCodeAPI {
 }
 
 export interface MessageFromExtension {
-  type: 'initialState' | 'taskStarted' | 'taskProgress' | 'taskCompleted' | 'codeCopied' | 'sessionsLoaded' | 'sessionSwitched' | 'agentsLoaded' | 'streamError';
+  type: 'initialState' | 'taskStarted' | 'taskProgress' | 'taskCompleted' | 'codeCopied' | 'sessionsLoaded' | 'sessionSwitched' | 'agentsLoaded' | 'toolApprovalRequest' | 'toolExecutionSignal' | 'toolResultAck' | 'streamError';
   payload?: any;
 }
 
 export interface MessageToExtension {
-  type: 'ready' | 'sendMessage' | 'applyChanges' | 'copyCode' | 'newChat' | 'retryMessage' | 'loadSessions' | 'switchSession' | 'deleteSession' | 'loadAgents';
+  type: 'ready' | 'sendMessage' | 'applyChanges' | 'copyCode' | 'newChat' | 'retryMessage' | 'loadSessions' | 'switchSession' | 'deleteSession' | 'loadAgents' | 'approveToolExecution' | 'rejectToolExecution' | 'submitToolResult';
   content?: string;
   code?: string;
   messageId?: string;
   diff?: string;
   sessionId?: string;
   targetAgent?: string;
+  approvalId?: string;
+  reason?: string;
+  toolId?: string;
+  result?: Record<string, any>;
 }

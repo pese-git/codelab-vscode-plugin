@@ -167,9 +167,7 @@ import { z } from 'zod';
 
 // Health
 export const HealthResponseSchema = z.object({
-  status: z.enum(['healthy', 'degraded', 'unhealthy']),
-  version: z.string(),
-  timestamp: z.string().datetime()
+  status: z.enum(['ok'])
 });
 
 export type HealthResponse = z.infer<typeof HealthResponseSchema>;
@@ -241,19 +239,65 @@ export type MessageResponse = z.infer<typeof MessageResponseSchema>;
 
 // Stream Event
 export const StreamEventSchema = z.object({
-  event_type: z.enum([
+  type: z.enum([
+    'message_received',
+    'message_created',
+    'agent_started',
+    'agent_status_changed',
+    'agent_response',
+    'agent_completed',
+    'orchestration_started',
+    'orchestration_plan_created',
+    'orchestration_completed',
+    'heartbeat',
+    'direct_agent_call',
     'task_started',
     'task_progress',
     'task_completed',
-    'error',
-    'heartbeat'
-  ]),
-  payload: z.any(),
-  session_id: z.string().uuid(),
-  timestamp: z.string().datetime()
+    'error'
+  ]).optional(),
+  event_type: z.enum([
+    'message_received',
+    'message_created',
+    'agent_started',
+    'agent_status_changed',
+    'agent_response',
+    'agent_completed',
+    'orchestration_started',
+    'orchestration_plan_created',
+    'orchestration_completed',
+    'heartbeat',
+    'direct_agent_call',
+    'task_started',
+    'task_progress',
+    'task_completed',
+    'error'
+  ]).optional(),
+  agent_id: z.string().uuid().nullable().optional(),
+  content: z.string().nullable().optional(),
+  timestamp: z.string().optional(),
+  metadata: z.record(z.any()).optional(),
+  payload: z.record(z.any()).optional(),
+  session_id: z.string().optional()
 });
 
 export type StreamEvent = z.infer<typeof StreamEventSchema>;
+
+// Agent Configuration
+export const AgentConfigSchema = z.object({
+  system_prompt: z.string().optional(),
+  model: z.string().optional(),
+  tools: z.array(z.string()).optional(),
+  concurrency_limit: z.number().int().min(1).max(10).optional(),
+  temperature: z.number().min(0).max(2).optional(),
+  max_tokens: z.number().int().min(1).max(128000).optional(),
+  metadata: z.record(z.any()).optional()
+});
+
+export type AgentConfig = z.infer<typeof AgentConfigSchema>;
+
+// Примечание: Поле `name` находится на верхнем уровне объекта агента,
+// а не в конфигурации. Это исправление улучшает структуру данных агентов.
 ```
 
 ## REST API Client
@@ -436,6 +480,58 @@ export class ValidationError extends Error {
     this.name = 'ValidationError';
   }
 }
+```
+
+#### ValidationError Handling Improvements
+
+**Исправление:** ValidationError больше не оборачивается в NetworkError. Это улучшает диагностику ошибок валидации.
+
+```typescript
+// Правильная обработка в request методе
+try {
+  const data = await response.json();
+  
+  if (schema) {
+    try {
+      return schema.parse(data);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        console.error('Response validation failed:', {
+          endpoint,
+          errors: error.errors,
+          data
+        });
+        throw new ValidationError('Response validation failed', error);
+      }
+      throw error;
+    }
+  }
+  
+  return data as T;
+} catch (error) {
+  if (error instanceof APIError) {
+    throw error;
+  }
+  
+  // ValidationError не оборачивается, выбрасывается как есть
+  if (error instanceof ValidationError) {
+    throw error;
+  }
+  
+  // Только сетевые ошибки оборачиваются в NetworkError
+  if ((error as any).name === 'AbortError') {
+    throw new NetworkError('Request timeout');
+  }
+  
+  throw new NetworkError('Network request failed', error as Error);
+}
+```
+
+**Преимущества:**
+- Точная диагностика ошибок валидации
+- Отдельная обработка ValidationError в UI слое
+- Логирование деталей ошибки валидации (какие поля, какие ошибки)
+- Лучшая отладка интеграции с API
 
 export async function withRetry<T>(
   fn: () => Promise<T>,
@@ -990,6 +1086,83 @@ describe('API Integration', () => {
 4. **Rate Limiting** - client-side throttling
 5. **Error Messages** - не раскрывать sensitive информацию
 
+## Agent Structure
+
+### Структура объекта агента
+
+```typescript
+// Полный объект агента на уровне REST API
+interface Agent {
+  id: string;              // UUID агента
+  name: string;            // Имя агента (на верхнем уровне, НЕ в config)
+  status?: string;         // Статус агента (ready, busy, error)
+  created_at?: string;     // Время создания
+  config: AgentConfig;     // Конфигурация агента (см. ниже)
+  icon?: string;           // Иконка для UI
+  description?: string;    // Описание для UI
+}
+
+// AgentConfig - конфигурация агента
+interface AgentConfig {
+  system_prompt?: string;           // Системный промпт для агента
+  model?: string;                   // Модель LLM
+  tools?: string[];                 // Доступные инструменты
+  concurrency_limit?: number;       // Лимит параллельных запросов (1-10)
+  temperature?: number;             // Параметр температуры (0-2)
+  max_tokens?: number;              // Максимум токенов в ответе
+  metadata?: Record<string, any>;   // Дополнительные метаданные
+}
+```
+
+### Пример агента из API
+
+```json
+{
+  "id": "550e8400-e29b-41d4-a716-446655440000",
+  "name": "Code Assistant",
+  "status": "ready",
+  "created_at": "2026-02-21T07:00:00Z",
+  "icon": "💻",
+  "config": {
+    "system_prompt": "You are a helpful code assistant that explains and improves code.",
+    "model": "gpt-4",
+    "tools": ["code_analysis", "documentation"],
+    "temperature": 0.7,
+    "max_tokens": 2000,
+    "concurrency_limit": 5,
+    "metadata": {
+      "version": "1.0",
+      "capabilities": ["refactoring", "debugging"]
+    }
+  }
+}
+```
+
+### Важные изменения в структуре
+
+**Исправление:** Поле `name` находится на верхнем уровне объекта агента, а не в `config`. Это правильная структура согласно API.
+
+Ошибочная структура (ДО):
+```typescript
+// ❌ НЕПРАВИЛЬНО
+config: {
+  name: "...",  // Это здесь не должно быть
+  system_prompt: "..."
+}
+```
+
+Правильная структура (ПОСЛЕ):
+```typescript
+// ✅ ПРАВИЛЬНО
+{
+  id: "...",
+  name: "Code Assistant",  // На верхнем уровне
+  config: {
+    system_prompt: "..."   // Без name в config
+  }
+}
+```
+
 ## Best Practices
 
 ### 1. Always use Zod for validation
@@ -1020,4 +1193,21 @@ dispose(): void {
 ```typescript
 const controller = new AbortController();
 setTimeout(() => controller.abort(), timeout);
+```
+
+### 6. Handle ValidationError separately
+```typescript
+try {
+  await api.sendMessage(message);
+} catch (error) {
+  if (error instanceof ValidationError) {
+    // Диагностика ошибки валидации ответа
+    console.error('Response schema validation failed', error.zodError);
+    showError('API response validation failed');
+  } else if (error instanceof NetworkError) {
+    showError('Network error: ' + error.message);
+  } else if (error instanceof APIError) {
+    showError(`API error (${error.status}): ${error.message}`);
+  }
+}
 ```

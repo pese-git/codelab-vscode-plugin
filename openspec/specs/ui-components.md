@@ -162,12 +162,14 @@ webview/
 
 ## WebView Provider
 
-### Registration
+### Registration & Localization
 
 ```typescript
 // src/ui/ChatViewProvider.ts
 import * as vscode from 'vscode';
 import * as path from 'path';
+import { t } from '../i18n';
+import { ValidationError, NetworkError, APIError } from '../api/errors';
 
 export class ChatViewProvider implements vscode.WebviewViewProvider {
   public static readonly viewType = 'codelab.chatView';
@@ -302,6 +304,83 @@ function getNonce(): string {
   return text;
 }
 ```
+
+### Localization in ChatViewProvider
+
+**Использование локализации для пользовательских сообщений:**
+
+```typescript
+import { t } from '../i18n';
+import { ValidationError, NetworkError, APIError } from '../api/errors';
+
+// В методе _handleMessage добавляем обработку ошибок
+private async _handleMessage(message: any): Promise<void> {
+  try {
+    // ... обработка сообщений
+  } catch (error) {
+    this._handleError(error);
+  }
+}
+
+// Специализированная обработка ошибок с локализацией
+private _handleError(error: unknown): void {
+  // Специальная обработка ValidationError с детальным логированием
+  if (error instanceof ValidationError) {
+    console.error('Response validation error:', {
+      message: error.message,
+      zodErrors: error.zodError.errors
+    });
+    vscode.window.showErrorMessage(
+      t('errors.validationError', { 
+        message: 'API response validation failed' 
+      })
+    );
+    return;
+  }
+  
+  // Обработка сетевых ошибок
+  if (error instanceof NetworkError) {
+    console.error('Network error:', {
+      message: error.message,
+      cause: error.cause?.message
+    });
+    vscode.window.showErrorMessage(
+      t('errors.networkError', { message: error.message })
+    );
+    return;
+  }
+  
+  // Обработка ошибок API
+  if (error instanceof APIError) {
+    console.error('API error:', {
+      status: error.status,
+      code: error.code,
+      message: error.message
+    });
+    vscode.window.showErrorMessage(
+      t('errors.apiError', { 
+        status: error.status, 
+        message: error.message 
+      })
+    );
+    return;
+  }
+  
+  // Неизвестная ошибка
+  console.error('Unexpected error:', error);
+  vscode.window.showErrorMessage(
+    'An unexpected error occurred. Check the console for details.'
+  );
+}
+```
+
+**Ключевые аспекты локализации в ChatViewProvider:**
+
+1. **Импорт функции локализации** - `import { t } from '../i18n'`
+2. **Импорт типов ошибок** - для точной идентификации типа ошибки
+3. **Специальная обработка ValidationError** - с логированием деталей ошибки Zod для отладки
+4. **Использование t() для всех пользовательских сообщений** - соблюдение единой системы локализации
+5. **Параметризация сообщений** - передача dynamic значений (статус, сообщение об ошибке)
 
 ## React Application
 

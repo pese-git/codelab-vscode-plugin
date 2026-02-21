@@ -223,7 +223,78 @@ interface DiffOperation {
 - Валидация diff перед применением
 - Multi-file support
 
-### 6. LSP Integration (`lsp/`)
+### 6. Internationalization Module (`i18n/`)
+
+Система локализации для поддержки нескольких языков интерфейса.
+
+**Расположение:** `src/i18n/`
+
+**Основные компоненты:**
+
+```typescript
+// src/i18n/messages.ts - словари сообщений
+export const messages = {
+  en: {
+    errors: { ... },
+    info: { ... }
+  },
+  ru: {
+    errors: { ... },
+    info: { ... }
+  }
+};
+
+// src/i18n/index.ts - функция для получения переводов
+export function t(key: string, params?: Record<string, any>): string
+```
+
+**Возможности:**
+- **Функция `t()`** - получение локализованных сообщений с поддержкой параметров
+- **Автоматическое определение языка** - на основе `vscode.env.language`
+- **Поддерживаемые языки:** английский (en), русский (ru)
+- **Подстановка параметров:** `t('errors.apiError', { status: 401, message: 'Unauthorized' })`
+
+**Использование в коде:**
+
+```typescript
+import { t } from '../i18n';
+
+// Простое использование
+vscode.window.showErrorMessage(t('errors.connectionFailed'));
+
+// С параметрами
+const message = t('errors.apiError', { 
+  status: error.status, 
+  message: error.message 
+});
+```
+
+**Структура словарей:**
+
+```typescript
+{
+  en: {
+    errors: {
+      authRequired: '...',
+      validationError: '...',
+      networkError: '...',
+      apiError: '...',
+      sessionNotFound: '...',
+      agentsLoadFailed: '...'
+    },
+    info: {
+      connected: '...',
+      sessionCreated: '...',
+      codeCopied: '...'
+    }
+  },
+  ru: {
+    // Русские переводы всех сообщений
+  }
+}
+```
+
+### 7. LSP Integration (`lsp/`)
 
 Интеграция с Language Server Protocol:
 

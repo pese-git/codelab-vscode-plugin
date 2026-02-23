@@ -21,7 +21,6 @@ export const ChatInput: React.FC<ChatInputProps> = React.memo(({
   selectedAgent = null,
   onAgentChange
 }) => {
-  console.log('[ChatInput] Rendering, disabled:', disabled);
   
   const [value, setValue] = useState('');
   const textareaRef = useRef<any>(null);

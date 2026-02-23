@@ -9,13 +9,9 @@ import type { Message, ChatSession, Agent } from './types';
 import './styles/global.css';
 
 export const App: React.FC = () => {
-  console.log('[App] Component rendering...');
-  
   const vscode = useVSCode();
-  console.log('[App] VSCode API acquired:', !!vscode);
   
   const { messages, addMessage, setMessagesDirectly, updateProgress, isLoading, setIsLoading, clearMessages } = useMessages();
-  console.log('[App] Messages state:', { count: messages.length, isLoading });
   
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [sessions, setSessions] = useState<ChatSession[]>([]);
@@ -33,7 +29,6 @@ export const App: React.FC = () => {
   // Сохраняем view в sessionStorage при изменении
   useEffect(() => {
     sessionStorage.setItem('codelab-view', view);
-    console.log('[App] View saved to sessionStorage:', view);
   }, [view]);
   
   // Используем ref для хранения актуальных значений без пересоздания обработчика

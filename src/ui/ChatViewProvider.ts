@@ -220,6 +220,11 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
       this.postMessage({ type: 'agentCompleted', payload });
     };
     
+    this.api.onAgentSwitched = (payload) => {
+      console.log('[ChatViewProvider] Forwarding agentSwitched:', payload);
+      this.postMessage({ type: 'agentSwitched', payload });
+    };
+    
     this.api.onOrchestrationStarted = (payload) => {
       console.log('[ChatViewProvider] Forwarding orchestrationStarted:', payload);
       this.postMessage({ type: 'orchestrationStarted', payload });

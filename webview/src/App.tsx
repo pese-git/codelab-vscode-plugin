@@ -37,10 +37,10 @@ export const App: React.FC = () => {
   }, [view]);
   
   // Используем ref для хранения актуальных значений без пересоздания обработчика
-  const stateRef = useRef({ addMessage, setMessagesDirectly, clearMessages, updateProgress, setIsLoading, setSessionId, setSessions, setAgents, setView, vscode });
+  const stateRef = useRef({ addMessage, setMessagesDirectly, clearMessages, updateProgress, setIsLoading, setSessionId, setSessions, setAgents, setSelectedAgent, agents, setView, vscode });
   
   // Обновляем ref при каждом рендере (не вызывает ререндер)
-  stateRef.current = { addMessage, setMessagesDirectly, clearMessages, updateProgress, setIsLoading, setSessionId, setSessions, setAgents, setView, vscode };
+  stateRef.current = { addMessage, setMessagesDirectly, clearMessages, updateProgress, setIsLoading, setSessionId, setSessions, setAgents, setSelectedAgent, agents, setView, vscode };
   
   // Создаем обработчик один раз при первом рендере
   const handleMessageRef = useRef<((event: MessageEvent) => void) | null>(null);
@@ -113,6 +113,26 @@ export const App: React.FC = () => {
           );
           break;
           
+        case 'agentSwitched':
+          console.log('[App] Agent switched:', message.payload);
+          if (message.payload && message.payload.selected_agent_id) {
+            const agentId = message.payload.selected_agent_id;
+            const agent = state.agents.find((a: Agent) => a.id === agentId);
+            console.log('[App] Found agent:', agent, 'for agentId:', agentId);
+            state.setSelectedAgent(agent || null);
+            
+            // Добавляем системное сообщение о переключении агента
+            if (agent) {
+              state.addMessage({
+                id: `agent-switched-${Date.now()}`,
+                role: 'system',
+                content: `Switched to agent: ${agent.name}`,
+                timestamp: new Date().toISOString()
+              });
+            }
+          }
+          break;
+
         case 'taskCompleted':
           console.log('[App] Task completed:', message.payload);
           console.log('[App] Task completed - result:', message.payload.result);

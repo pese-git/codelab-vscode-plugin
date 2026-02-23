@@ -265,6 +265,11 @@ export class CodeLabAPI {
       this.onAgentCompleted?.(event.payload || event);
     });
     
+    streamingClient.on('agent_switched', (event) => {
+      console.log('[CodeLabAPI] agent_switched event:', event);
+      this.onAgentSwitched?.(event.payload || event);
+    });
+    
     streamingClient.on('orchestration_started', (event) => {
       console.log('[CodeLabAPI] orchestration_started event:', event);
       this.onOrchestrationStarted?.(event.payload || event);
@@ -340,6 +345,7 @@ export class CodeLabAPI {
   onAgentStatusChanged?: (payload: any) => void;
   onAgentResponse?: (payload: any) => void;
   onAgentCompleted?: (payload: any) => void;
+  onAgentSwitched?: (payload: any) => void;
   onOrchestrationStarted?: (payload: any) => void;
   onOrchestrationPlanCreated?: (payload: any) => void;
   onOrchestrationCompleted?: (payload: any) => void;

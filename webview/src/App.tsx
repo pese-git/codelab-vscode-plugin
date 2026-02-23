@@ -115,20 +115,23 @@ export const App: React.FC = () => {
           
         case 'agentSwitched':
           console.log('[App] Agent switched:', message.payload);
-          if (message.payload && message.payload.selected_agent_id) {
-            const agentId = message.payload.selected_agent_id;
+          console.log('[App] Available agents:', state.agents);
+          if (message.payload) {
+            const agentId = message.payload.selected_agent_id || message.payload.agent_id;
+            console.log('[App] Looking for agent ID:', agentId);
             const agent = state.agents.find((a: Agent) => a.id === agentId);
             console.log('[App] Found agent:', agent, 'for agentId:', agentId);
-            state.setSelectedAgent(agent || null);
-            
-            // Добавляем системное сообщение о переключении агента
             if (agent) {
+              state.setSelectedAgent(agent);
               state.addMessage({
                 id: `agent-switched-${Date.now()}`,
                 role: 'system',
                 content: `Switched to agent: ${agent.name}`,
                 timestamp: new Date().toISOString()
               });
+            } else if (agentId) {
+              console.warn('[App] Agent not found in list, clearing selection');
+              state.setSelectedAgent(null);
             }
           }
           break;

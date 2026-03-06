@@ -1,4 +1,5 @@
 import { StreamEventSchema, type StreamEvent } from './schemas';
+import type { ToolHandler } from '../tools/ToolHandler';
 
 export class StreamingClient {
   private abortController: AbortController | null = null;
@@ -14,8 +15,30 @@ export class StreamingClient {
     private projectId: string,
     private sessionId: string,
     private token: string,
-    private baseUrl: string
-  ) {}
+    private baseUrl: string,
+    private toolHandler?: ToolHandler
+  ) {
+    this.registerToolHandlers();
+  }
+  
+  private registerToolHandlers(): void {
+    if (!this.toolHandler) {
+      return;
+    }
+    
+    // Register tool event handlers
+    this.on('tool.approval_request', (event) => {
+      this.toolHandler?.handleToolApprovalRequest(event as any);
+    });
+    
+    this.on('tool.execution_signal', (event) => {
+      this.toolHandler?.handleToolExecutionSignal(event as any);
+    });
+    
+    this.on('tool.result_ack', (event) => {
+      this.toolHandler?.handleToolResultAck(event as any);
+    });
+  }
   
   async connect(): Promise<void> {
     this.isManuallyDisconnected = false;

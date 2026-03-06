@@ -352,4 +352,21 @@ export class APIClient {
       }
     );
   }
+
+  async sendToolResult(
+    projectId: string,
+    toolId: string,
+    result: any
+  ): Promise<{ success: boolean; tool_id: string; status: string; message?: string }> {
+    return await this.request(
+      `/my/projects/${projectId}/tools/${toolId}/result`,
+      {
+        method: 'POST',
+        body: JSON.stringify({
+          result,
+          received_at: new Date().toISOString()
+        })
+      }
+    );
+  }
 }

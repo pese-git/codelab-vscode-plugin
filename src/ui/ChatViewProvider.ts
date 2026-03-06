@@ -183,6 +183,30 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
         await this.loadAgents();
         break;
         
+      case 'approveToolExecution':
+        try {
+          await this.api.approveToolExecution(message.approvalId);
+        } catch (error) {
+          console.error('Error approving tool execution:', error);
+          this.postMessage({
+            type: 'error',
+            payload: { message: `Failed to approve tool execution: ${error}` }
+          });
+        }
+        break;
+        
+      case 'rejectToolExecution':
+        try {
+          await this.api.rejectToolExecution(message.approvalId, message.reason);
+        } catch (error) {
+          console.error('Error rejecting tool execution:', error);
+          this.postMessage({
+            type: 'error',
+            payload: { message: `Failed to reject tool execution: ${error}` }
+          });
+        }
+        break;
+        
       case 'ready':
         await this.sendInitialState();
         break;
@@ -263,6 +287,21 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
     this.api.onStreamError = (payload) => {
       console.log('[ChatViewProvider] Forwarding streamError:', payload);
       this.postMessage({ type: 'streamError', payload });
+    };
+
+    this.api.onToolApprovalRequest = (payload) => {
+      console.log('[ChatViewProvider] Forwarding toolApprovalRequest:', payload);
+      this.postMessage({ type: 'toolApprovalRequest', payload });
+    };
+
+    this.api.onToolExecutionSignal = (payload) => {
+      console.log('[ChatViewProvider] Forwarding toolExecutionSignal:', payload);
+      this.postMessage({ type: 'toolExecutionSignal', payload });
+    };
+
+    this.api.onToolResultAck = (payload) => {
+      console.log('[ChatViewProvider] Forwarding toolResultAck:', payload);
+      this.postMessage({ type: 'toolResultAck', payload });
     };
   }
   

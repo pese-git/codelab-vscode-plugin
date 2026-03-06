@@ -51,4 +51,13 @@ export interface MessageToExtension {
   reason?: string;
   toolId?: string;
   result?: Record<string, any>;
+  metadata?: Record<string, any>;
+}
+
+export interface ToolApprovalRequest {
+  approval_id: string;
+  tool_name: string;
+  params: Record<string, any>;
+  risk_level: 'low' | 'medium' | 'high' | 'critical';
+  timestamp: string;
 }

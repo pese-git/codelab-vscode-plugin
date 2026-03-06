@@ -106,9 +106,9 @@ export const StreamEventSchema = z.object({
     'task_started',
     'task_progress',
     'task_completed',
-    'tool_approval_request',
-    'tool_execution_signal',
-    'tool_result_ack',
+    'tool.approval_request',
+    'tool.execution_signal',
+    'tool.result_ack',
     'error'
   ]).optional(),
   event_type: z.enum([
@@ -127,9 +127,9 @@ export const StreamEventSchema = z.object({
     'task_started',
     'task_progress',
     'task_completed',
-    'tool_approval_request',
-    'tool_execution_signal',
-    'tool_result_ack',
+    'tool.approval_request',
+    'tool.execution_signal',
+    'tool.result_ack',
     'error'
   ]).optional(),
   agent_id: z.string().uuid().nullable().optional(),
@@ -137,7 +137,7 @@ export const StreamEventSchema = z.object({
   timestamp: z.string().optional(),
   metadata: z.record(z.any()).optional(),
   payload: z.record(z.any()).optional(),
-  session_id: z.string().optional()
+  session_id: z.string().nullable().optional()
 }).transform(obj => {
   const eventType = obj.type || obj.event_type || 'unknown';
   return { ...obj, type: eventType as any };

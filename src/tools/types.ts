@@ -1,13 +1,14 @@
 /**
  * Tool Execution Types and Interfaces
- * Полная типизация для tool flow MVP
+ * Полная типизация для tool flow согласно OpenSpec
  */
 
-// Tool Names (только MVP tools: read_file + execute_command)
-export type ToolName = 'read_file' | 'execute_command';
+// Tool Names (поддерживаемые tools)
+export type ToolName = 'read_file' | 'write_file' | 'execute_command' | 'list_directory';
+export type ToolType = ToolName;
 
-// Risk Levels для tool execution
-export type RiskLevel = 'LOW' | 'MEDIUM' | 'HIGH';
+// Risk Levels для tool execution (согласно OpenSpec)
+export type RiskLevel = 'low' | 'medium' | 'high' | 'critical';
 
 // Tool Execution Status
 export type ToolExecutionStatus = 
@@ -40,27 +41,41 @@ export interface ToolExecution {
   error?: string;       // error message если FAILED
 }
 
-// Tool Approval Request Event (от сервера)
-export interface ToolApprovalRequestEvent {
-  approval_id: string;
+// Tool Approval Request Event (от сервера, согласно OpenSpec)
+export interface ToolApprovalRequest {
+  type: 'tool.approval_request';
+  tool_id: string;
   tool_name: ToolName;
-  tool_params: Record<string, any>;
+  tool_description?: string;
+  args: Record<string, unknown>;
   risk_level: RiskLevel;
-  timeout_seconds: number;
-  description: string;  // human-readable description
+  estimated_duration_ms?: number;
+  timestamp: string;
+  session_id?: string;
 }
 
-// Tool Execution Signal Event (от сервера)
-export interface ToolExecutionSignalEvent {
+// Tool Execution Signal Event (от сервера, согласно OpenSpec)
+export interface ToolExecutionSignal {
+  type: 'tool.execution_signal';
   tool_id: string;
-  tool_name: ToolName;
-  tool_params: Record<string, any>;
+  tool_type: ToolType;
+  args: Record<string, unknown>;
+  execution_context?: {
+    user_approved: boolean;
+    approval_time?: string;
+  };
+  timestamp: string;
+  session_id?: string;
 }
 
-// Tool Result ACK Event (от сервера, optional)
-export interface ToolResultAckEvent {
+// Tool Result ACK Event (от сервера, согласно OpenSpec)
+export interface ToolResultAck {
+  type: 'tool.result_ack';
   tool_id: string;
-  status: 'received' | 'processing' | 'completed';
+  receipt_status: 'received' | 'processed' | 'rejected';
+  message?: string;
+  timestamp: string;
+  session_id?: string;
 }
 
 // Tool Executor Interface
@@ -68,35 +83,41 @@ export interface IToolExecutor {
   execute(toolName: ToolName, params: Record<string, any>): Promise<ToolExecutionResult>;
 }
 
-// Tool Execution Result (результат выполнения инструмента)
-export interface ToolExecutionResult {
+// Executor Result Types (для внутреннего использования executors)
+export interface ExecutorResult {
   success: boolean;
   stdout?: string;
   stderr?: string;
   exit_code?: number;
   output?: string;
   error?: string;
+  size_bytes?: number;
+  encoding?: string;
   duration_ms?: number;
 }
 
 // File Operations Result (для read_file)
-export interface FileReadResult extends ToolExecutionResult {
-  success: boolean;
-  output?: string;       // file contents
-  error?: string;        // if failed
-  size_bytes?: number;
-  encoding?: string;
-}
+export type FileReadResult = ExecutorResult;
 
 // Command Execution Result (для execute_command)
-export interface CommandExecutionResult extends ToolExecutionResult {
-  success: boolean;
+export type CommandExecutionResult = ExecutorResult;
+
+// Tool Execution Result (для отправки на backend, согласно OpenSpec)
+export interface ToolExecutionResult {
+  tool_id: string;
+  tool_type: ToolType;
+  status: 'success' | 'error' | 'timeout' | 'cancelled';
+  output?: unknown;
+  error?: {
+    message: string;
+    code?: string;
+    details?: unknown;
+  };
+  duration_ms: number;
+  timestamp: string;
   stdout?: string;
   stderr?: string;
   exit_code?: number;
-  error?: string;
-  signal?: string;       // SIGTERM, SIGKILL и т.д.
-  duration_ms?: number;
 }
 
 // Path Validation Options

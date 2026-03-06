@@ -2,12 +2,45 @@ import * as vscode from 'vscode';
 import { CodeLabAPI } from './api';
 import { ChatViewProvider } from './ui/ChatViewProvider';
 import { registerCommands } from './commands';
+import { ToolHandler } from './tools/ToolHandler';
+import type { Logger } from './tools/ToolHandler';
+
+let toolHandler: ToolHandler | null = null;
+
+// Dummy approval dialog provider - actual dialogs are handled by the webview
+const dummyApprovalDialogProvider = {
+  showApprovalDialog: () => {
+    // Dialogs are shown in webview, not here
+  }
+};
 
 export function activate(context: vscode.ExtensionContext) {
   console.log('CodeLab extension is now active');
   
   // Initialize API
   const api = new CodeLabAPI(context);
+  
+  // Create logger for ToolHandler
+  const logger: Logger = {
+    info: (message: string) => console.log('[ToolHandler]', message),
+    debug: (message: string) => console.log('[ToolHandler:DEBUG]', message),
+    error: (message: string) => console.error('[ToolHandler:ERROR]', message)
+  };
+  
+  // Initialize ToolHandler with workspace root
+  const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath || process.cwd();
+  toolHandler = new ToolHandler(
+    api,
+    dummyApprovalDialogProvider,
+    logger,
+    workspaceRoot,
+    {
+      commandTimeoutMs: 30000,
+      fileSizeMaxBytes: 5 * 1024 * 1024, // 5MB
+      concurrencyLimit: 3,
+      approvalTimeoutMs: 300000 // 5 minutes
+    }
+  );
   
   // Register WebView Provider
   const chatViewProvider = new ChatViewProvider(context.extensionUri, api);
@@ -25,6 +58,9 @@ export function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push({
     dispose: () => {
       api.dispose();
+      if (toolHandler) {
+        toolHandler.dispose();
+      }
     }
   });
   
@@ -62,4 +98,8 @@ async function initializeExtension(context: vscode.ExtensionContext, api: CodeLa
 
 export function deactivate() {
   console.log('CodeLab extension is now deactivated');
+  if (toolHandler) {
+    toolHandler.dispose();
+    toolHandler = null;
+  }
 }

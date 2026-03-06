@@ -306,18 +306,18 @@ export class CodeLabAPI {
     });
 
     // Tool events
-    streamingClient.on('tool_approval_request', (event) => {
-      console.log('[CodeLabAPI] tool_approval_request event:', event);
+    streamingClient.on('tool.approval_request', (event) => {
+      console.log('[CodeLabAPI] tool.approval_request event:', event);
       this.onToolApprovalRequest?.(event.payload || event);
     });
 
-    streamingClient.on('tool_execution_signal', (event) => {
-      console.log('[CodeLabAPI] tool_execution_signal event:', event);
+    streamingClient.on('tool.execution_signal', (event) => {
+      console.log('[CodeLabAPI] tool.execution_signal event:', event);
       this.onToolExecutionSignal?.(event.payload || event);
     });
 
-    streamingClient.on('tool_result_ack', (event) => {
-      console.log('[CodeLabAPI] tool_result_ack event:', event);
+    streamingClient.on('tool.result_ack', (event) => {
+      console.log('[CodeLabAPI] tool.result_ack event:', event);
       this.onToolResultAck?.(event.payload || event);
     });
 
@@ -467,6 +467,12 @@ export class CodeLabAPI {
     const projectId = await this.getOrCreateProject();
     console.log('[CodeLabAPI] Submitting tool result:', toolId, result);
     await withRetry(() => this.client.submitToolResult(projectId, toolId, result));
+  }
+
+  async sendToolResult(toolId: string, result: any): Promise<void> {
+    const projectId = await this.getOrCreateProject();
+    console.log('[CodeLabAPI] Sending tool result:', toolId, result);
+    await withRetry(() => this.client.sendToolResult(projectId, toolId, result));
   }
   
   dispose(): void {

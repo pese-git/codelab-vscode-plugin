@@ -3,9 +3,10 @@ import { ChatHeader } from './components/ChatHeader';
 import { MessageList } from './components/MessageList';
 import { ChatInput } from './components/ChatInput';
 import { SessionList } from './components/SessionList';
+import { ToolApprovalBlock } from './components/ToolApprovalBlock';
 import { useMessages } from './hooks/useMessages';
 import { useVSCode } from './hooks/useVSCode';
-import type { Message, ChatSession, Agent } from './types';
+import type { Message, ChatSession, Agent, ToolApprovalRequest } from './types';
 import './styles/global.css';
 
 export const App: React.FC = () => {
@@ -18,6 +19,7 @@ export const App: React.FC = () => {
   const [agents, setAgents] = useState<Agent[]>([]);
   const [selectedAgent, setSelectedAgent] = useState<Agent | null>(null);
   const [isCreatingSession, setIsCreatingSession] = useState(false);
+  const [currentToolApproval, setCurrentToolApproval] = useState<ToolApprovalRequest | null>(null);
   
   // Показываем список сессий, когда нет активной сессии или нет сообщений
   const [view, setView] = useState<'sessions' | 'chat'>(() => {
@@ -32,10 +34,10 @@ export const App: React.FC = () => {
   }, [view]);
   
   // Используем ref для хранения актуальных значений без пересоздания обработчика
-  const stateRef = useRef({ addMessage, setMessagesDirectly, clearMessages, updateProgress, setIsLoading, setSessionId, setSessions, setAgents, setSelectedAgent, agents, setView, vscode });
+  const stateRef = useRef({ addMessage, setMessagesDirectly, clearMessages, updateProgress, setIsLoading, setSessionId, setSessions, setAgents, setSelectedAgent, agents, setView, vscode, setCurrentToolApproval });
   
   // Обновляем ref при каждом рендере (не вызывает ререндер)
-  stateRef.current = { addMessage, setMessagesDirectly, clearMessages, updateProgress, setIsLoading, setSessionId, setSessions, setAgents, setSelectedAgent, agents, setView, vscode };
+  stateRef.current = { addMessage, setMessagesDirectly, clearMessages, updateProgress, setIsLoading, setSessionId, setSessions, setAgents, setSelectedAgent, agents, setView, vscode, setCurrentToolApproval };
   
   // Создаем обработчик один раз при первом рендере
   const handleMessageRef = useRef<((event: MessageEvent) => void) | null>(null);
@@ -184,9 +186,36 @@ export const App: React.FC = () => {
             console.log('[App] messageCreated payload is empty or not assistant role:', messageCreatedPayload);
           }
           break;
+
+        case 'toolApprovalRequest':
+          console.log('[App] Tool approval request received:', message.payload);
+          state.setCurrentToolApproval(message.payload);
+          break;
+
+        case 'toolExecutionSignal':
+          console.log('[App] Tool execution signal received:', message.payload);
+          // Tool execution is happening on the backend, keep the approval dialog open
+          break;
+
+        case 'toolResultAck':
+          console.log('[App] Tool result ack received:', message.payload);
+          // Tool execution completed, clear the approval dialog
+          state.setCurrentToolApproval(null);
+          break;
           
         case 'codeCopied':
           console.log('[App] Code copied notification');
+          break;
+          
+        case 'error':
+          console.log('[App] Error message received:', message.payload);
+          state.addMessage({
+            id: `error-${Date.now()}`,
+            role: 'system',
+            content: `Error: ${message.payload?.message || 'Unknown error'}`,
+            timestamp: new Date().toISOString(),
+            isError: true
+          });
           break;
           
         default:
@@ -329,6 +358,19 @@ export const App: React.FC = () => {
             showBackButton={true}
           />
           <MessageList messages={messages} />
+          {currentToolApproval && (
+            <ToolApprovalBlock
+              approvalId={currentToolApproval.approval_id}
+              toolName={currentToolApproval.tool_name}
+              toolParams={currentToolApproval.params}
+              riskLevel={(currentToolApproval.risk_level.toUpperCase() as 'LOW' | 'MEDIUM' | 'HIGH')}
+              timeoutSeconds={300}
+              onRemove={() => {
+                // Close the approval dialog
+                setCurrentToolApproval(null);
+              }}
+            />
+          )}
           <ChatInput
             onSend={handleSendMessage}
             disabled={isLoading}

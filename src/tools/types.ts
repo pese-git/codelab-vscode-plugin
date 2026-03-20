@@ -58,14 +58,18 @@ export interface ToolApprovalRequest {
 export interface ToolExecutionSignal {
   type: 'tool.execution_signal';
   tool_id: string;
-  tool_type: ToolType;
-  args: Record<string, unknown>;
+  tool_name: ToolName;  // ← Сервер отправляет tool_name вместо tool_type
+  tool_params: Record<string, unknown>;  // ← Сервер отправляет tool_params вместо args
   execution_context?: {
     user_approved: boolean;
     approval_time?: string;
   };
   timestamp: string;
   session_id?: string;
+  
+  // Deprecated fields (for backward compatibility)
+  tool_type?: ToolType;  // Альтернативное имя для tool_name
+  args?: Record<string, unknown>;  // Альтернативное имя для tool_params
 }
 
 // Tool Result ACK Event (от сервера, согласно OpenSpec)

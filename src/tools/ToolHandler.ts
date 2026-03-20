@@ -286,10 +286,12 @@ export class ToolHandler {
 
       // Create normalized event to ensure tool_id and tool_name are always available
       const normalizedEvent: ToolExecutionSignal = {
-        ...event,
+        ...unwrappedEvent,
         tool_id,
         tool_name,
-        tool_type: tool_name as any
+        tool_type: tool_name as any,
+        tool_params,
+        args: tool_params
       };
 
       const result = await this.executeAndReport(normalizedEvent);
@@ -310,15 +312,31 @@ export class ToolHandler {
       });
 
       this.logger.info(`[ToolHandler] About to send result for tool: ${tool_id}`);
+      this.logger.info(`[ToolHandler] Result details: status=${result.status}, has_output=${!!result.output}, has_error=${!!result.error}`);
       
       try {
         await this.api.sendToolResult(tool_id, result);
         this.logger.info(`[ToolHandler] Result sent successfully to backend`);
       } catch (sendError) {
-        const errorMessage = sendError instanceof Error ? sendError.message : String(sendError);
-        this.logger.error(`[ToolHandler] Failed to send result to backend for tool ${tool_id}: ${errorMessage}`);
+        // Improved error logging
+        let errorDetails: string;
+        if (sendError instanceof Error) {
+          errorDetails = `${sendError.name}: ${sendError.message}`;
+        } else if (typeof sendError === 'object' && sendError !== null) {
+          try {
+            errorDetails = JSON.stringify(sendError);
+          } catch {
+            errorDetails = Object.toString.call(sendError);
+          }
+        } else {
+          errorDetails = String(sendError);
+        }
+        
+        this.logger.error(`[ToolHandler] Failed to send result to backend for tool ${tool_id}: ${errorDetails}`);
         this.traceLogger.error('Failed to send tool result', {
-          tool_id
+          tool_id,
+          errorType: typeof sendError,
+          errorName: sendError instanceof Error ? sendError.name : undefined
         }, sendError instanceof Error ? sendError : undefined);
         throw sendError;
       }

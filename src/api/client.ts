@@ -79,12 +79,23 @@ export class APIClient {
       if (!response.ok) {
         let errorMessage = 'Unknown error';
         let errorCode = 'UNKNOWN';
+        let errorDetails: any = null;
         
         try {
           const contentType = response.headers.get('content-type');
           if (contentType?.includes('application/json')) {
             const error: any = await response.json();
-            errorMessage = error.detail || error.message || errorMessage;
+            errorDetails = error;
+            
+            // Extract error message - handle both string and object cases
+            if (error.detail) {
+              errorMessage = typeof error.detail === 'string' ? error.detail : JSON.stringify(error.detail);
+            } else if (error.message) {
+              errorMessage = typeof error.message === 'string' ? error.message : JSON.stringify(error.message);
+            } else if (error.error) {
+              errorMessage = typeof error.error === 'string' ? error.error : JSON.stringify(error.error);
+            }
+            
             errorCode = error.error_code || error.code || errorCode;
           } else {
             errorMessage = await response.text() || errorMessage;
@@ -93,10 +104,23 @@ export class APIClient {
           // Ignore parsing errors
         }
         
+        console.error('[APIClient] API Error:', {
+          endpoint,
+          status: response.status,
+          errorCode,
+          errorMessage,
+          errorDetails
+        });
+        
         throw new APIError(response.status, errorCode, errorMessage);
       }
       
       const data = await response.json();
+      
+      // Log successful response for tool results
+      if (endpoint.includes('/tools/') && endpoint.includes('/result')) {
+        console.log('[APIClient] Backend response for tool result:', JSON.stringify(data, null, 2));
+      }
       
       // Validate response with Zod if schema provided
       if (schema) {
@@ -358,14 +382,74 @@ export class APIClient {
     toolId: string,
     result: any
   ): Promise<{ success: boolean; tool_id: string; status: string; message?: string }> {
+    // Transform result to match backend schema:
+    // Backend expects: { status, result?, error?, completed_at? }
+    // Where status is 'completed' or 'failed'
+    
+    console.log('[APIClient] sendToolResult START - Input result status:', result?.status);
+    const backendStatus = result.status === 'success' ? 'completed' : 'failed';
+    console.log('[APIClient] sendToolResult - Converted to backend status:', backendStatus);
+    
+    const payload: any = {
+      status: backendStatus
+    };
+    
+    // Add completed_at if timestamp is available
+    if (result.timestamp) {
+      payload.completed_at = result.timestamp;
+    }
+    
+    // Build result object with tool execution details
+    const resultData: any = {
+      tool_id: result.tool_id,
+      tool_type: result.tool_type
+    };
+    
+    // Add optional fields that are defined
+    if (result.output !== undefined) {
+      resultData.output = result.output;
+    }
+    if (result.stdout !== undefined) {
+      resultData.stdout = result.stdout;
+    }
+    if (result.stderr !== undefined) {
+      resultData.stderr = result.stderr;
+    }
+    if (result.exit_code !== undefined) {
+      resultData.exit_code = result.exit_code;
+    }
+    if (result.duration_ms !== undefined) {
+      resultData.duration_ms = result.duration_ms;
+    }
+    
+    payload.result = resultData;
+    
+    // Add error message if execution failed
+    if (result.status !== 'success' && result.error) {
+      payload.error = typeof result.error === 'string' 
+        ? result.error 
+        : result.error.message || JSON.stringify(result.error);
+    }
+    
+    console.log('[APIClient] Sending tool result. Tool ID:', toolId);
+    console.log('[APIClient] Final payload structure:');
+    console.log('[APIClient] - status:', payload.status);
+    console.log('[APIClient] - has result:', !!payload.result);
+    console.log('[APIClient] - result keys:', payload.result ? Object.keys(payload.result) : 'N/A');
+    console.log('[APIClient] - has error:', !!payload.error, 'value:', payload.error);
+    console.log('[APIClient] - completed_at:', payload.completed_at);
+    console.log('[APIClient] Payload keys:', Object.keys(payload));
+    console.log('[APIClient] - Full payload:', JSON.stringify(payload, null, 2));
+    
+    const body = JSON.stringify(payload);
+    console.log('[APIClient] Request body size:', body.length);
+    console.log('[APIClient] About to POST to:', `/my/projects/${projectId}/tools/${toolId}/result`);
+    
     return await this.request(
       `/my/projects/${projectId}/tools/${toolId}/result`,
       {
         method: 'POST',
-        body: JSON.stringify({
-          result,
-          received_at: new Date().toISOString()
-        })
+        body
       }
     );
   }

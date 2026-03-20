@@ -485,20 +485,35 @@ export class CodeLabAPI {
 
   async sendToolResult(toolId: string, result: any): Promise<void> {
     const projectId = await this.getOrCreateProject();
-    console.log('[CodeLabAPI] Sending tool result:', toolId, result);
+    console.log('[CodeLabAPI] Sending tool result:', toolId);
+    console.log('[CodeLabAPI] Result object:', JSON.stringify(result, null, 2));
     
     try {
       await withRetry(() => this.client.sendToolResult(projectId, toolId, result));
       console.log('[CodeLabAPI] Tool result sent successfully:', toolId);
     } catch (error) {
-      console.error('[CodeLabAPI] Failed to send tool result:', {
+      // Improve error logging to capture actual error details
+      let errorDetails: any = {
         toolId,
         projectId,
-        error: error instanceof Error ? error.message : String(error),
         resultStatus: result?.status,
         hasOutput: !!result?.output,
         hasError: !!result?.error
-      });
+      };
+
+      if (error instanceof Error) {
+        errorDetails.errorMessage = error.message;
+        errorDetails.errorName = error.name;
+        errorDetails.errorStack = error.stack;
+      } else if (typeof error === 'object' && error !== null) {
+        // Capture all properties of error object
+        errorDetails.errorObject = JSON.stringify(error, Object.getOwnPropertyNames(error));
+        errorDetails.errorType = typeof error;
+      } else {
+        errorDetails.error = String(error);
+      }
+
+      console.error('[CodeLabAPI] Failed to send tool result:', errorDetails);
       throw error;
     }
   }

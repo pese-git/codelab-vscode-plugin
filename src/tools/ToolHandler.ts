@@ -207,40 +207,48 @@ export class ToolHandler {
    * Handle tool execution signal from backend
    * Спецификация: local-tool-execution/spec.md:63-84
    */
-  async handleToolExecutionSignal(event: ToolExecutionSignal): Promise<void> {
+  async handleToolExecutionSignal(event: ToolExecutionSignal | any): Promise<void> {
     const startTime = Date.now();
 
+    // Unpack payload if event is wrapped (from StreamingClient)
+    const unwrappedEvent = (event.payload || event) as ToolExecutionSignal;
+
+    // Normalize event: support both old and new field names
+    const tool_id = unwrappedEvent.tool_id || event.tool_id;
+    const tool_name = unwrappedEvent.tool_name || unwrappedEvent.tool_type as any;
+    const tool_params = unwrappedEvent.tool_params || unwrappedEvent.args || {};
+
     this.traceLogger.phaseStart('TOOL_EXECUTION', {
-      tool_id: event.tool_id,
-      tool_type: event.tool_type
+      tool_id,
+      tool_type: tool_name
     });
 
     this.logger.info(`[ToolHandler] ════════════════════════════════════════`);
     this.logger.info(`[ToolHandler] Tool execution signal received`);
-    this.logger.info(`[ToolHandler] Tool ID: ${event.tool_id}`);
-    this.logger.info(`[ToolHandler] Tool Type: ${event.tool_type}`);
-    this.logger.info(`[ToolHandler] Arguments: ${JSON.stringify(event.args)}`);
+    this.logger.info(`[ToolHandler] Tool ID: ${tool_id}`);
+    this.logger.info(`[ToolHandler] Tool Name: ${tool_name}`);
+    this.logger.info(`[ToolHandler] Parameters: ${JSON.stringify(tool_params)}`);
     this.logger.info(`[ToolHandler] ════════════════════════════════════════`);
 
     try {
       // Check preconditions
       this.traceLogger.step('TOOL_EXECUTION', 'CHECK_PRECONDITIONS', {
-        tool_id: event.tool_id,
-        tool_type: event.tool_type
+        tool_id,
+        tool_type: tool_name
       });
 
-      const isApproved = event.execution_context?.user_approved || this.pendingApprovals.has(event.tool_id);
+      const isApproved = unwrappedEvent.execution_context?.user_approved || this.pendingApprovals.has(tool_id);
       this.traceLogger.state('PRECONDITIONS_CHECK', {
-        tool_id: event.tool_id,
+        tool_id,
         isApproved,
-        userApproved: event.execution_context?.user_approved,
-        pendingApproval: this.pendingApprovals.has(event.tool_id),
-        toolType: event.tool_type,
-        requiresApproval: event.tool_type !== 'read_file' && event.tool_type !== 'list_directory'
+        userApproved: unwrappedEvent.execution_context?.user_approved,
+        pendingApproval: this.pendingApprovals.has(tool_id),
+        toolType: tool_name,
+        requiresApproval: tool_name !== 'read_file' && tool_name !== 'list_directory'
       });
 
-      if (!isApproved && event.tool_type !== 'read_file' && event.tool_type !== 'list_directory') {
-        this.logger.error(`Tool execution not approved: ${event.tool_id}`);
+      if (!isApproved && tool_name !== 'read_file' && tool_name !== 'list_directory') {
+        this.logger.error(`Tool execution not approved: ${tool_id}`);
         this.traceLogger.validation('approval_check', false, 'Tool execution not approved');
         return;
       }
@@ -249,16 +257,16 @@ export class ToolHandler {
 
       // Check concurrency
       this.traceLogger.step('TOOL_EXECUTION', 'CHECK_CONCURRENCY', {
-        tool_id: event.tool_id,
+        tool_id,
         concurrentCount: this.concurrentCount,
         concurrencyLimit: this.config.concurrencyLimit,
         queueLength: this.concurrentQueue.length
       });
 
       if (this.concurrentCount >= this.config.concurrencyLimit) {
-        this.logger.info(`Queueing tool execution (concurrent limit reached): ${event.tool_id}`);
+        this.logger.info(`Queueing tool execution (concurrent limit reached): ${tool_id}`);
         this.traceLogger.trace('TOOL_QUEUED', {
-          tool_id: event.tool_id,
+          tool_id,
           reason: 'concurrent_limit_reached',
           queueLength: this.concurrentQueue.length + 1
         });
@@ -272,57 +280,65 @@ export class ToolHandler {
 
       // Execute and report result
       this.traceLogger.step('TOOL_EXECUTION', 'EXECUTE_AND_REPORT', {
-        tool_id: event.tool_id,
-        tool_type: event.tool_type
+        tool_id,
+        tool_type: tool_name
       });
 
-      const result = await this.executeAndReport(event);
+      // Create normalized event to ensure tool_id and tool_name are always available
+      const normalizedEvent: ToolExecutionSignal = {
+        ...event,
+        tool_id,
+        tool_name,
+        tool_type: tool_name as any
+      };
+
+      const result = await this.executeAndReport(normalizedEvent);
 
       this.logger.info(`[ToolHandler] Tool execution completed`);
       this.logger.info(`[ToolHandler] Status: ${result.status}`);
       this.logger.info(`[ToolHandler] Duration: ${result.duration_ms}ms`);
 
       this.traceLogger.trace('EXECUTION_RESULT', {
-        tool_id: event.tool_id,
+        tool_id,
         status: result.status,
         duration_ms: result.duration_ms
       });
 
       // Send result to backend
       this.traceLogger.step('TOOL_EXECUTION', 'SEND_RESULT_TO_BACKEND', {
-        tool_id: event.tool_id
+        tool_id
       });
 
-      this.logger.info(`[ToolHandler] About to send result for tool: ${event.tool_id}`);
+      this.logger.info(`[ToolHandler] About to send result for tool: ${tool_id}`);
       
       try {
-        await this.api.sendToolResult(event.tool_id, result);
+        await this.api.sendToolResult(tool_id, result);
         this.logger.info(`[ToolHandler] Result sent successfully to backend`);
       } catch (sendError) {
         const errorMessage = sendError instanceof Error ? sendError.message : String(sendError);
-        this.logger.error(`[ToolHandler] Failed to send result to backend for tool ${event.tool_id}: ${errorMessage}`);
+        this.logger.error(`[ToolHandler] Failed to send result to backend for tool ${tool_id}: ${errorMessage}`);
         this.traceLogger.error('Failed to send tool result', {
-          tool_id: event.tool_id
+          tool_id
         }, sendError instanceof Error ? sendError : undefined);
         throw sendError;
       }
 
       this.traceLogger.trace('RESULT_SENT', {
-        tool_id: event.tool_id,
+        tool_id,
         status: 'sent'
       });
 
       // Cleanup
       this.traceLogger.step('TOOL_EXECUTION', 'CLEANUP', {
-        tool_id: event.tool_id
+        tool_id
       });
 
-      this.pendingApprovals.delete(event.tool_id);
-      this.activeExecutions.delete(event.tool_id);
+      this.pendingApprovals.delete(tool_id);
+      this.activeExecutions.delete(tool_id);
 
       // Process queued executions
       this.traceLogger.step('TOOL_EXECUTION', 'PROCESS_QUEUE', {
-        tool_id: event.tool_id,
+        tool_id,
         queueLength: this.concurrentQueue.length
       });
 
@@ -330,12 +346,12 @@ export class ToolHandler {
     } catch (error) {
       this.logger.error(`Error handling tool execution signal: ${error instanceof Error ? error.message : String(error)}`);
       this.traceLogger.error('Error handling tool execution signal', {
-        tool_id: event.tool_id
+        tool_id
       }, error instanceof Error ? error : undefined);
     }
 
     this.traceLogger.phaseEnd('TOOL_EXECUTION', Date.now() - startTime, {
-      tool_id: event.tool_id
+      tool_id
     });
   }
 
@@ -483,38 +499,42 @@ export class ToolHandler {
     const startTime = Date.now();
     this.concurrentCount++;
 
+    // Normalize event fields (support both old and new field names)
+    const tool_name = event.tool_name || (event.tool_type as any) || 'unknown';
+    const tool_params = event.tool_params || event.args || {};
+
     this.traceLogger.phaseStart('EXECUTE_AND_REPORT', {
       tool_id: event.tool_id,
-      tool_type: event.tool_type,
+      tool_type: tool_name,
       concurrentCount: this.concurrentCount
     });
 
     try {
-      this.logger.info(`Executing tool: ${event.tool_id}, type: ${event.tool_type}`);
+      this.logger.info(`Executing tool: ${event.tool_id}, type: ${tool_name}`);
 
-      this.traceLogger.toolStart(event.tool_id, event.tool_type, {
+      this.traceLogger.toolStart(event.tool_id, tool_name, {
         concurrentCount: this.concurrentCount
       });
 
-      this.traceLogger.params('EXECUTOR_INPUT', event.args);
+      this.traceLogger.params('EXECUTOR_INPUT', tool_params);
 
       let executorResult: any;
 
       // Delegate to appropriate executor
       this.traceLogger.step('EXECUTE_AND_REPORT', 'DELEGATE_TO_EXECUTOR', {
         tool_id: event.tool_id,
-        tool_type: event.tool_type
+        tool_type: tool_name
       });
 
-      switch (event.tool_type) {
+      switch (tool_name) {
         case 'read_file':
           this.logger.info(`[ToolHandler] ▶️  Executing read_file`);
-          this.logger.info(`[ToolHandler] Path: ${event.args?.path || 'N/A'}`);
+          this.logger.info(`[ToolHandler] Path: ${tool_params?.path || 'N/A'}`);
           this.traceLogger.trace('EXECUTING_READ_FILE', {
             tool_id: event.tool_id,
-            args: event.args
+            args: tool_params
           });
-          executorResult = await this.fileSystemExecutor.readFile(event.args);
+          executorResult = await this.fileSystemExecutor.readFile(tool_params);
           if (executorResult.success) {
             const outputPreview = executorResult.output 
               ? (typeof executorResult.output === 'string' 
@@ -533,7 +553,7 @@ export class ToolHandler {
         case 'write_file':
           this.traceLogger.trace('EXECUTING_WRITE_FILE', {
             tool_id: event.tool_id,
-            args: event.args
+            args: tool_params
           });
           // Not yet implemented in FileSystemExecutor
           executorResult = {
@@ -545,27 +565,27 @@ export class ToolHandler {
         case 'list_directory':
           this.traceLogger.trace('EXECUTING_LIST_DIRECTORY', {
             tool_id: event.tool_id,
-            args: event.args
+            args: tool_params
           });
-          executorResult = await this.fileSystemExecutor.listDirectory(event.args);
+          executorResult = await this.fileSystemExecutor.listDirectory(tool_params);
           break;
 
         case 'execute_command':
           this.traceLogger.trace('EXECUTING_COMMAND', {
             tool_id: event.tool_id,
-            args: event.args
+            args: tool_params
           });
-          executorResult = await this.commandExecutor.executeCommand(event.args);
+          executorResult = await this.commandExecutor.executeCommand(tool_params);
           break;
 
         default:
           this.traceLogger.trace('UNKNOWN_TOOL_TYPE', {
             tool_id: event.tool_id,
-            tool_type: event.tool_type
+            tool_type: tool_name
           });
           executorResult = {
             success: false,
-            error: `Unknown tool type: ${event.tool_type}`
+            error: `Unknown tool type: ${tool_name}`
           };
       }
 
@@ -589,7 +609,7 @@ export class ToolHandler {
 
       this.executionHistory.push({
         tool_id: event.tool_id,
-        tool_type: event.tool_type,
+        tool_type: tool_name as any,
         status: success ? 'completed' : 'failed',
         startTime: new Date(startTime),
         endTime: new Date(),
@@ -599,7 +619,7 @@ export class ToolHandler {
 
       this.logger.info(`Tool execution completed: ${event.tool_id}, duration: ${duration_ms}ms`);
 
-      this.traceLogger.toolEnd(event.tool_id, event.tool_type, duration_ms, success, {
+      this.traceLogger.toolEnd(event.tool_id, tool_name, duration_ms, success, {
         executionHistorySize: this.executionHistory.length
       });
 
@@ -611,7 +631,7 @@ export class ToolHandler {
 
       const executionResult: ToolExecutionResult = {
         tool_id: event.tool_id,
-        tool_type: event.tool_type,
+        tool_type: tool_name as any,
         status: success ? 'success' : 'error',
         output: success ? (executorResult.output || undefined) : undefined,
         error: success ? undefined : {
@@ -645,7 +665,7 @@ export class ToolHandler {
 
       const errorResult = {
         tool_id: event.tool_id,
-        tool_type: event.tool_type,
+        tool_type: tool_name as any,
         status: 'error' as const,
         output: undefined,
         error: {
@@ -688,25 +708,37 @@ export class ToolHandler {
     while (this.concurrentQueue.length > 0 && this.concurrentCount < this.config.concurrencyLimit) {
       const { event, resolver } = this.concurrentQueue.shift()!;
 
+      // Normalize event fields
+      const tool_id = event.tool_id;
+      const tool_name = event.tool_name || (event.tool_type as any) || 'unknown';
+
       this.traceLogger.trace('PROCESSING_QUEUED_EXECUTION', {
-        tool_id: event.tool_id,
-        tool_type: event.tool_type,
+        tool_id,
+        tool_type: tool_name,
         queueLengthAfter: this.concurrentQueue.length
       });
 
       processed++;
 
-      this.executeAndReport(event)
+      // Ensure normalized event has correct fields
+      const normalizedEvent: ToolExecutionSignal = {
+        ...event,
+        tool_id,
+        tool_name,
+        tool_type: tool_name as any
+      };
+
+      this.executeAndReport(normalizedEvent)
         .then((result) => {
           this.traceLogger.trace('QUEUED_EXECUTION_RESOLVED', {
-            tool_id: event.tool_id,
+            tool_id,
             status: result.status
           });
           resolver(result);
         })
         .catch((error) => {
           this.traceLogger.error('QUEUED_EXECUTION_ERROR', {
-            tool_id: event.tool_id
+            tool_id
           }, error instanceof Error ? error : undefined);
         });
     }

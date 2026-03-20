@@ -140,7 +140,9 @@ export const SubmitToolResultRequestSchema = z.object({
     output: z.string().optional(),  // для read_file
     error: z.string().optional()
   }).optional(),
-  error: z.string().optional()
+  error: z.string().optional(),
+  completed_at: z.string().datetime().optional(), // ISO 8601 timestamp
+  session_id: z.string().uuid().optional() // Chat session ID for tracing
 });
 
 export type SubmitToolResultRequest = z.infer<typeof SubmitToolResultRequestSchema>;

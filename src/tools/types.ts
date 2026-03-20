@@ -122,6 +122,7 @@ export interface ToolExecutionResult {
   stdout?: string;
   stderr?: string;
   exit_code?: number;
+  session_id?: string; // Chat session ID for tracing
 }
 
 // Path Validation Options

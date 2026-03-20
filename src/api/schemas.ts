@@ -109,6 +109,7 @@ export const StreamEventSchema = z.object({
     'tool.approval_request',
     'tool.execution_signal',
     'tool.result_ack',
+    'tool_result',
     'error'
   ]).optional(),
   event_type: z.enum([
@@ -130,6 +131,7 @@ export const StreamEventSchema = z.object({
     'tool.approval_request',
     'tool.execution_signal',
     'tool.result_ack',
+    'tool_result',
     'error'
   ]).optional(),
   agent_id: z.string().uuid().nullable().optional(),

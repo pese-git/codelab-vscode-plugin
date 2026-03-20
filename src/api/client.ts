@@ -383,7 +383,7 @@ export class APIClient {
     result: any
   ): Promise<{ success: boolean; tool_id: string; status: string; message?: string }> {
     // Transform result to match backend schema:
-    // Backend expects: { status, result?, error?, completed_at? }
+    // Backend expects: { status, result?, error?, completed_at?, session_id? }
     // Where status is 'completed' or 'failed'
     
     console.log('[APIClient] sendToolResult START - Input result status:', result?.status);
@@ -397,6 +397,11 @@ export class APIClient {
     // Add completed_at if timestamp is available
     if (result.timestamp) {
       payload.completed_at = result.timestamp;
+    }
+    
+    // Add session_id if available (for tracing)
+    if (result.session_id) {
+      payload.session_id = result.session_id;
     }
     
     // Build result object with tool execution details
@@ -438,6 +443,7 @@ export class APIClient {
     console.log('[APIClient] - result keys:', payload.result ? Object.keys(payload.result) : 'N/A');
     console.log('[APIClient] - has error:', !!payload.error, 'value:', payload.error);
     console.log('[APIClient] - completed_at:', payload.completed_at);
+    console.log('[APIClient] - session_id:', payload.session_id);
     console.log('[APIClient] Payload keys:', Object.keys(payload));
     console.log('[APIClient] - Full payload:', JSON.stringify(payload, null, 2));
     

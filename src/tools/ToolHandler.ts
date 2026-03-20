@@ -660,7 +660,8 @@ export class ToolHandler {
         timestamp: new Date().toISOString(),
         stdout: executorResult?.stdout,
         stderr: executorResult?.stderr,
-        exit_code: executorResult?.exit_code
+        exit_code: executorResult?.exit_code,
+        session_id: event.session_id
       };
 
       this.traceLogger.trace('RESULT_CREATED', {
@@ -691,7 +692,8 @@ export class ToolHandler {
           code: 'EXECUTION_ERROR'
         },
         duration_ms,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
+        session_id: event.session_id
       };
 
       this.traceLogger.trace('ERROR_RESULT_CREATED', {

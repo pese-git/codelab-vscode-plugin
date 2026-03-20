@@ -43,6 +43,10 @@ export class StreamingClient {
       console.log('[StreamingClient] Forwarding tool.result_ack to ToolHandler');
       this.toolHandler?.handleToolResultAck(event as any);
     });
+    
+    this.on('tool_result', (event) => {
+      console.log('[StreamingClient] Received tool_result event - tool result submitted successfully');
+    });
   }
   
   setToolHandler(toolHandler: ToolHandler): void {

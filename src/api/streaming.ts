@@ -9,7 +9,7 @@ export class StreamingClient {
   private isConnected = false;
   private isManuallyDisconnected = false;
   private connectionId = 0;
-  private eventHandlers: Map<string, (event: StreamEvent) => void> = new Map();
+  private eventHandlers: Map<string, Array<(event: StreamEvent) => void>> = new Map();
   
   constructor(
     private projectId: string,
@@ -26,18 +26,29 @@ export class StreamingClient {
       return;
     }
     
+    console.log('[StreamingClient] Registering tool handlers');
+    
     // Register tool event handlers
     this.on('tool.approval_request', (event) => {
+      console.log('[StreamingClient] Forwarding tool.approval_request to ToolHandler');
       this.toolHandler?.handleToolApprovalRequest(event as any);
     });
     
     this.on('tool.execution_signal', (event) => {
+      console.log('[StreamingClient] Forwarding tool.execution_signal to ToolHandler');
       this.toolHandler?.handleToolExecutionSignal(event as any);
     });
     
     this.on('tool.result_ack', (event) => {
+      console.log('[StreamingClient] Forwarding tool.result_ack to ToolHandler');
       this.toolHandler?.handleToolResultAck(event as any);
     });
+  }
+  
+  setToolHandler(toolHandler: ToolHandler): void {
+    console.log('[StreamingClient] setToolHandler called');
+    this.toolHandler = toolHandler;
+    this.registerToolHandlers();
   }
   
   async connect(): Promise<void> {
@@ -146,10 +157,12 @@ export class StreamingClient {
   private handleEvent(event: StreamEvent): void {
     const eventType = (event.type || event.event_type) as string;
     console.log(`[StreamingClient] Received event type: "${eventType}"`, event);
-    const handler = this.eventHandlers.get(eventType);
-    if (handler) {
-      console.log(`[StreamingClient] Handler found for "${eventType}", executing...`);
-      handler(event);
+    const handlers = this.eventHandlers.get(eventType);
+    if (handlers && handlers.length > 0) {
+      console.log(`[StreamingClient] ${handlers.length} handler(s) found for "${eventType}", executing...`);
+      for (const handler of handlers) {
+        handler(event);
+      }
     } else {
       console.warn(`[StreamingClient] No handler registered for event type: "${eventType}"`);
       console.log(`[StreamingClient] Available handlers:`, Array.from(this.eventHandlers.keys()));
@@ -200,11 +213,15 @@ export class StreamingClient {
   }
   
   on(eventType: string, handler: (event: StreamEvent) => void): void {
-    this.eventHandlers.set(eventType, handler);
+    const handlers = this.eventHandlers.get(eventType) || [];
+    handlers.push(handler);
+    this.eventHandlers.set(eventType, handlers);
+    console.log(`[StreamingClient] Handler registered for "${eventType}". Total handlers: ${handlers.length}`);
   }
   
   off(eventType: string): void {
     this.eventHandlers.delete(eventType);
+    console.log(`[StreamingClient] Handlers removed for "${eventType}"`);
   }
   
   // Callbacks

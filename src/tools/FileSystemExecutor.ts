@@ -116,6 +116,12 @@ export class FileSystemExecutor {
       const errorMessage = this.getErrorMessage(error);
 
       this.log(`[FileSystemExecutor] Error reading file: ${errorMessage}`);
+      console.error(`[FileSystemExecutor] readFile FAILED for ${params.path}:`, {
+        error: errorMessage,
+        duration,
+        errorCode: (error as any)?.code,
+        errorType: error?.constructor?.name
+      });
 
       this.traceLogger.error('Error reading file', {
         path: params.path,

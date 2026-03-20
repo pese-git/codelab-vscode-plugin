@@ -6,11 +6,13 @@ import { getAPIConfig } from './config';
 import { withRetry, APIError } from './errors';
 import type { MessageRequest } from './schemas';
 import { t } from '../i18n/messages';
+import type { ToolHandler } from '../tools/ToolHandler';
 
 export class CodeLabAPI {
   private client: APIClient;
   private streamingClient: StreamingClient | null = null;
   private authManager: AuthManager;
+  private toolHandler?: ToolHandler;
   private activeStreamKey: string | null = null;
   private streamingConnectPromise: Promise<void> | null = null;
   private connectingStreamKey: string | null = null;
@@ -30,6 +32,11 @@ export class CodeLabAPI {
         this.context.globalState.update('currentSessionId', undefined);
       })
     );
+  }
+  
+  setToolHandler(toolHandler: ToolHandler): void {
+    this.toolHandler = toolHandler;
+    console.log('[CodeLabAPI] ToolHandler set successfully');
   }
   
   async sendMessage(content: string, targetAgent?: string): Promise<void> {
@@ -201,6 +208,13 @@ export class CodeLabAPI {
     console.log('[CodeLabAPI] Setting up streaming handlers before connect...');
     this.setupStreamingHandlers(streamingClient);
     console.log('[CodeLabAPI] Streaming handlers setup complete');
+
+    // Connect ToolHandler to the new StreamingClient AFTER setupStreamingHandlers
+    // to avoid being overwritten by the API handlers
+    if (this.toolHandler) {
+      console.log('[CodeLabAPI] Setting ToolHandler on new StreamingClient');
+      streamingClient.setToolHandler(this.toolHandler);
+    }
 
     const connectPromise = (async () => {
       console.log('[CodeLabAPI] Connecting to streaming endpoint...');
@@ -472,7 +486,21 @@ export class CodeLabAPI {
   async sendToolResult(toolId: string, result: any): Promise<void> {
     const projectId = await this.getOrCreateProject();
     console.log('[CodeLabAPI] Sending tool result:', toolId, result);
-    await withRetry(() => this.client.sendToolResult(projectId, toolId, result));
+    
+    try {
+      await withRetry(() => this.client.sendToolResult(projectId, toolId, result));
+      console.log('[CodeLabAPI] Tool result sent successfully:', toolId);
+    } catch (error) {
+      console.error('[CodeLabAPI] Failed to send tool result:', {
+        toolId,
+        projectId,
+        error: error instanceof Error ? error.message : String(error),
+        resultStatus: result?.status,
+        hasOutput: !!result?.output,
+        hasError: !!result?.error
+      });
+      throw error;
+    }
   }
   
   dispose(): void {

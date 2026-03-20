@@ -293,9 +293,19 @@ export class ToolHandler {
         tool_id: event.tool_id
       });
 
-      this.logger.info(`[ToolHandler] Sending result to backend...`);
-      await this.api.sendToolResult(event.tool_id, result);
-      this.logger.info(`[ToolHandler] Result sent successfully to backend`);
+      this.logger.info(`[ToolHandler] About to send result for tool: ${event.tool_id}`);
+      
+      try {
+        await this.api.sendToolResult(event.tool_id, result);
+        this.logger.info(`[ToolHandler] Result sent successfully to backend`);
+      } catch (sendError) {
+        const errorMessage = sendError instanceof Error ? sendError.message : String(sendError);
+        this.logger.error(`[ToolHandler] Failed to send result to backend for tool ${event.tool_id}: ${errorMessage}`);
+        this.traceLogger.error('Failed to send tool result', {
+          tool_id: event.tool_id
+        }, sendError instanceof Error ? sendError : undefined);
+        throw sendError;
+      }
 
       this.traceLogger.trace('RESULT_SENT', {
         tool_id: event.tool_id,

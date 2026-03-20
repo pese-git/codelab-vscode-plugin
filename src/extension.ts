@@ -42,6 +42,9 @@ export function activate(context: vscode.ExtensionContext) {
     }
   );
   
+  // Connect ToolHandler to API for streaming
+  api.setToolHandler(toolHandler);
+  
   // Register WebView Provider
   const chatViewProvider = new ChatViewProvider(context.extensionUri, api);
   context.subscriptions.push(
